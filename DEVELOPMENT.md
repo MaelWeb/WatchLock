@@ -25,9 +25,23 @@ SIGN_IDENTITY="Apple Development: ..." ./Scripts/build-app.sh --debug
 
 当前**仅通过 GitHub Release 分发，不发布到 App Store**。GitHub Actions 构建通用二进制并打包 DMG，默认使用 ad-hoc 签名（`SIGN_IDENTITY=-`），无需 Apple 证书、公证凭据或额外 GitHub PAT。Developer ID 签名与公证是后续降低 Gatekeeper 安装阻力的可选增强，不阻塞当前发布。
 
+### 锁屏后靠近唤醒
+
+2026-10-16 修复：旧 `AppSession` 在 `isScreenLocked == true` 时跳过靠近事件，导致最需要亮屏的锁屏场景无法进入唤醒服务；同时将显示器熄屏和会话锁定混为同一状态。现在会话锁定、显示器熄屏和整机睡眠独立跟踪；锁屏后新产生的靠近事件可以请求亮屏，已解锁会话不会读取或输入托管密码。
+
+亮屏改用公开 `IOPMAssertionDeclareUserActivity`，检查 IOKit 返回码并复用返回的 assertion ID；不再把 `caffeinate` 成功启动等同于实际开屏。依据：[Apple IOPMLib.h](https://github.com/apple-oss-distributions/IOKitUser/blob/main/pwr_mgt.subproj/IOPMLib.h) 明确该 API 用于开启显示器、无需特殊权限，按系统显示器睡眠设置延后熄屏；[Apple caffeinate 手册](https://github.com/apple-oss-distributions/PowerManagement/blob/main/caffeinate/caffeinate.8) 说明 `-u` 也是用户活动断言，默认超时 5 秒，旧实现显式传入 1 秒。此调整不是认定 1 秒为本次故障原因，确定的阻断来自应用自身的锁屏 guard。
+
+日志中的“已提交显示器唤醒请求”只表示 API 接受请求，“收到系统显示器唤醒通知”才确认系统报告亮屏，二者均不保证解锁。依据：[NSWorkspace.screensDidWakeNotification](https://developer.apple.com/documentation/appkit/nsworkspace/screensdidwakenotification)。唤醒请求失败或碰到冷却期后，只在冷却结束且收到新有效近距离样本时补偿一次；远离、停止监听或整机睡眠会取消补偿，避免凭过期距离持续开屏。
+
+限制：程序在整机睡眠时停止扫描，不能靠手表 BLE 从整机睡眠/合盖状态唤醒 Mac；系统先唤醒后才恢复扫描。手表一直在附近时手动锁屏不会凭已有 near 状态自动亮屏，避免立即抵消用户手动锁屏。会话锁定继续使用既有非公开分布式通知，系统升级后的通知行为、锁屏亮屏效果与 Apple Watch 原生解锁均待真机验证；尚未得到与本故障一致的一手开发者论坛报告，未据此推断额外系统限制。
+
 ### GitHub Actions 发布
 
 流水线：`.github/workflows/release.yml`，构建脚本：`Scripts/build-dmg.sh`。
+
+Universal 构建通过两个 `--arch` 自动选择 SwiftPM 的 Xcode 构建系统；`Package.swift` 在包级声明 `swiftLanguageModes: [.v5]`，应用与测试目标均继承此设置。SwiftPM 6.0 的 PIF 生成器会把目标级语言模式与包级声明列表求交集；仅设置目标级 `.swiftLanguageMode(.v5)` 而未声明包级列表会出现 `given: [5], supported: []`，导致 `SWIFT_VERSION` 未生成。这不是编译器不支持 Swift 5，也与应用沙箱选项无关。依据：[SwiftPM 6.0 BuildOptions.buildSystem](https://github.com/swiftlang/swift-package-manager/blob/swift-6.0-RELEASE/Sources/CoreCommands/Options.swift)、[PackageBuilder.declaredSwiftVersions](https://github.com/swiftlang/swift-package-manager/blob/swift-6.0-RELEASE/Sources/PackageLoading/PackageBuilder.swift)、[PIFBuilder.addSwiftVersionSettings](https://github.com/swiftlang/swift-package-manager/blob/swift-6.0-RELEASE/Sources/XCBuildSupport/PIFBuilder.swift)。发布前运行真实清单解析回归测试，并在 CI 日志中输出 Xcode / Swift 版本；原报错环境的具体工具链版本未记录，云端修复效果待重新运行验证。
+
+2026-10-16 验证：本地 Xcode 26.3 / Swift 6.2.4 下，117 例 Swift 测试、16 例发布测试、actionlint / ShellCheck 与 `RELEASE_VERSION=1.0.0 BUILD_NUMBER=2 SIGN_IDENTITY=-` 的 Universal DMG 打包通过，产物含 arm64 / x86_64，签名及 SHA-256 校验通过。CI 必须在包含修复的新提交上启动新运行；直接 Re-run 旧失败运行仍会使用旧提交。
 
 - **自动版本发布（推荐）**：在 GitHub Actions 的「Build DMG and Release」选择「Run workflow」，选择默认分支（当前为 `main`），将 `release_type` 设为 `patch`、`minor` 或 `major`，`version` 留空。自动从最高已有稳定标签递增版本；无稳定标签时以 `Resources/Info.plist` 为基准。测试与 DMG 打包成功后，创建指向本次构建提交的注释标签，并在**同一次运行**中发布 GitHub Release。
 - 例如已有 `v0.4.0`：`patch` → `v0.4.1`，`minor` → `v0.5.0`，`major` → `v1.0.0`。只识别无前导零的 `vmajor.minor.patch`；预发布、构建后缀及其他命名的标签不参与计算。若尚无标签且源码版本为 `0.1.0`，首次 patch 发布为 `v0.1.1`。

@@ -1,4 +1,5 @@
 import Foundation
+import IOKit.pwr_mgt
 
 /// 锁屏执行方式。
 ///
@@ -191,19 +192,26 @@ struct ScreenLocker {
         return true
     }
 
-    /// 点亮显示器（模拟一次用户活动），用于靠近时的「先唤醒、再由系统解锁」。
+    private static let userActivityLock = NSLock()
+    private static var userActivityAssertionID: IOPMAssertionID = 0
+
+    /// 请求点亮显示器；成功仅表示电源管理接受请求，实际唤醒由 screensDidWake 通知确认。
+    /// 依据：Apple IOPMLib.h 的 IOPMAssertionDeclareUserActivity（链接见 DEVELOPMENT.md）。
+    /// 断言按系统显示器睡眠设置失效，重复调用须复用返回的 ID；不阻止整机睡眠。
     @discardableResult
-    static func wakeDisplay(seconds: Int = 1) -> Bool {
-        let process = Process()
-        process.launchPath = "/usr/bin/caffeinate"
-        process.arguments = ["-u", "-t", "\(seconds)"]
-        do {
-            try process.run()
-            DiagnosticsLog.shared.append(.info, "点亮显示器")
-            return true
-        } catch {
-            DiagnosticsLog.shared.append(.error, "点亮显示器失败：\(error.localizedDescription)")
+    static func wakeDisplay() -> Bool {
+        userActivityLock.lock()
+        defer { userActivityLock.unlock() }
+        let result = IOPMAssertionDeclareUserActivity(
+            "WatchLock watch approach" as CFString,
+            kIOPMUserActiveLocal,
+            &userActivityAssertionID
+        )
+        guard result == kIOReturnSuccess else {
+            DiagnosticsLog.shared.append(.error, "显示器唤醒请求失败（IOKit \(result)）")
             return false
         }
+        DiagnosticsLog.shared.append(.info, "已提交显示器唤醒请求，等待系统显示器唤醒通知")
+        return true
     }
 }

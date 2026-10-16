@@ -13,7 +13,6 @@ let package = Package(
             path: "Sources/WatchLock",
             exclude: [],
             swiftSettings: [
-                .swiftLanguageMode(.v5),
                 .define("WATCHLOCK_SPM")
             ]
         ),
@@ -22,9 +21,10 @@ let package = Package(
             dependencies: ["WatchLock"],
             path: "Tests/WatchLockTests",
             swiftSettings: [
-                .swiftLanguageMode(.v5),
                 .define("WATCHLOCK_SPM")
             ]
         )
-    ]
+    ],
+    // SwiftPM 6.0 XCBuild validates target modes against this list (see DEVELOPMENT.md).
+    swiftLanguageModes: [.v5]
 )

@@ -90,6 +90,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "版本：v$version；发布：$publish" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Toolchain diagnostics
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          xcrun --find swift
+          swift --version
+
       - name: Test
         run: |
           swift test

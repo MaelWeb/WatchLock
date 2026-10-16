@@ -208,7 +208,7 @@ stateDiagram-v2
 1. 触发条件全部满足才执行锁定：
    - 功能开关已开启且未处于暂停；
    - 不在唤醒宽限期内；
-   - 当前屏幕未锁定（通过 `com.apple.screenIsLocked/Unlocked` 与 `screensDidSleep/Wake` 判定）。
+   - 当前会话未锁定（通过既有非公开 `com.apple.screenIsLocked/Unlocked` 通知跟踪）；显示器熄屏/亮屏单独记录，不代表会话锁定/解锁。
 2. 锁定方式可配置（默认 `controlCommandQ` 模拟 ⌃⌘Q）：
 
 | 方式 | 实现 | 适用场景 |
@@ -228,7 +228,7 @@ stateDiagram-v2
 
 ### FR-05 靠近唤醒与解锁（P1）
 
-1. 靠近事件触发时点亮显示器：`caffeinate -u -t 1`（模拟用户活动）。
+1. 靠近事件触发时，通过公开 `IOPMAssertionDeclareUserActivity` 请求点亮显示器；锁屏不应阻断此请求。检查 IOKit 返回码并独立监听 `screensDidWake` 通知确认，不能把请求接受视为实际亮屏或解锁。失败或冷却拦截后，只在冷却结束且收到新的有效近距离样本时重试一次；暂停、关闭、远离、停止监听或整机睡眠时不执行。官方依据及待真机验证边界见 `DEVELOPMENT.md`。
 2. 解锁策略三选一，默认「系统自动解锁（推荐）」：
 
 | 策略 | 行为 | 风险 |
@@ -297,7 +297,7 @@ stateDiagram-v2
 
 1. 监听 `NSWorkspace` 的 willSleep / didWake / screensDidSleep / screensDidWake，以及分布式通知 `com.apple.screenIsLocked` / `screenIsUnlocked`。
 2. 唤醒后进入宽限期并重置距离状态机，避免 RSSI 未稳定时误锁。
-3. 睡眠期间停止扫描，唤醒后恢复。
+3. 整机睡眠期间停止扫描，系统先唤醒后恢复；不承诺依靠手表 BLE 唤醒整机或合盖的 Mac。显示器熄屏不停止扫描，也不视为会话已锁定。
 
 ### FR-14 距离校准向导（P2，M3 → 已提前交付）
 
@@ -407,12 +407,13 @@ stateDiagram-v2
 | ADR-01 | 用 BLE RSSI 做距离判定 | UWB / Wi-Fi RTT / 摄像头人感 | 仅 Apple Watch Series 6+ 支持 UWB 且不向第三方开放；RSSI 是唯一通用可行方案 |
 | ADR-02 | 锁屏默认模拟 ⌃⌘Q，私有 `SACLockScreenImmediate` 作为**可选**方式 | 默认用 `CGSession -suspend`（macOS 26 已移除） | ⌃⌘Q 为公开手段、可预期；私有接口免辅助功能授权，但接口未公开、可能随系统升级失效，故仅作为用户主动选择项，不在默认值里引入风险。依据：符号名与「系统内部用于锁定屏幕」的用法见 Stack Overflow 一手回答（`SACLockScreenImmediate` in `login.framework`）；是否真能锁屏待真机验证 |
 | ADR-03 | 解锁默认不托管密码 | 托管密码为默认 | 安全优先；Apple 未开放第三方解锁 API，托管密码存在泄漏与失效风险 |
-| ADR-04 | SwiftPM 工程 + 脚本打包 .app | Xcode .xcodeproj | 便于命令行构建与 CI；GUI 相关资源由 `Scripts/build-app.sh` 注入 Info.plist 与 entitlements |
+| ADR-04 | SwiftPM 工程 + 脚本打包 .app；包级声明 Swift 5 语言模式 | Xcode .xcodeproj / 仅目标级语言模式 | 便于命令行构建与 CI；GUI 相关资源由 `Scripts/build-app.sh` 注入 Info.plist 与 entitlements；旧 SwiftPM 的 Universal XCBuild 路径按包级列表校验目标语言模式，避免空候选列表导致 `SWIFT_VERSION` 缺失；官方源码依据见 `DEVELOPMENT.md` |
 | ADR-05 | SwiftUI `MenuBarExtra` | NSStatusItem 手写 | 代码量小、macOS 14+ 原生支持 `.window` 样式面板 |
 | ADR-06 | 状态判定用双阈值 + 宽限 | 单一阈值 | 抑制临界抖动，降低误锁率 |
 | ADR-07 | 本期不实现 watchOS 配套 App | 手表端主动广播 / iPhone 中转 | 后台广播持续性无保证、签名与维护成本高；现有多证据识别 + 校准 + 误锁调参已覆盖主要问题。评估全文见 `docs/watchos-companion-evaluation.md` |
 | ADR-08 | 定位为「离开即锁屏」，不追求复刻 Apple 官方识别可靠性 | 自己实现手表在场判定 + 解锁 | Apple 官方「用 Apple Watch 解锁」依赖 iCloud 身份 + 双重认证 + Continuity，第三方无对应 API；官方方案只覆盖解锁、不覆盖离开锁屏，本项目补的正是这一段。依据见 `docs/anti-false-lock-research.md` |
 | ADR-09 | 仅通过 GitHub Release 分发，GitHub Actions 构建通用 DMG；CI 默认 ad-hoc 签名 | App Store；先等 Developer ID 公证再发布 | 用户指定 GitHub 流水线打包与 Release 渠道；DMG 打包不依赖 Apple 证书。明示未公证、Gatekeeper 与升级后重新授权风险，签名 / 公证保留为后续增强 |
+| ADR-10 | 靠近时用公开用户活动断言请求亮屏，显示器 / 会话 / 整机睡眠独立跟踪 | 仅启动 caffeinate 并视为成功；锁屏时跳过唤醒 | 锁屏不能阻断亮屏；IOKit 返回码与 NSWorkspace 显示器通知分别记录请求结果和系统唤醒报告，避免把亮屏视为解锁；官方头文件及文档依据见 `DEVELOPMENT.md`，锁屏亮屏效果待真机验证 |
 
 ---
 
@@ -545,3 +546,5 @@ stateDiagram-v2
 | v1.9 | 2026-10-16 | 三项决策落地：①状态卡与菜单栏统一为同源五态图标（新增 `StatusIcon`，移除 `ProximityStatus.symbolName`，设计稿 `01-menubar.html` 同步）；②新增可选私有 API 锁屏 `SACLockScreenImmediate`（`SystemLockScreen` 运行时解析、免辅助功能、失效降级并通知；**默认仍为 ⌃⌘Q**，不影响已有配置）；③定为主渠道 **GitHub Release、暂不上 App Store**（据此保留私有 API 方案），README / DEVELOPMENT / 需求文档同步；单测累计 117 例。**未做**：真机验证锁屏效果、公证与 DMG、universal 二进制（阻塞于 Developer ID / 公证凭据与仓库地址） |
 | v1.10 | 2026-10-16 | 按用户要求实现 GitHub Actions DMG 打包与仅 GitHub Release 分发（ADR-09）：标签触发单测、arm64 + x86_64 通用应用、DMG / SHA-256 校验、草稿上传后公开 Release；手动触发仅上传 artifact；版本注入打包产物而不改源码 plist，安装包携带许可。CI 默认 ad-hoc，无需 Apple 证书或公证凭据，纠正 v1.9 将 DMG 与 universal 构建视为凭据阻塞的描述。本地通用 DMG、117 例测试与 actionlint / ShellCheck 校验通过；首次 GitHub 云端发布待验证，未执行提交 / 推送 / 发布 |
 | v1.11 | 2026-10-16 | 新增手动 patch / minor / major 自动版本发布：从最高稳定标签递增，无标签时读取源码 plist；仅默认分支允许自动发布，默认 build-only 保留仅打包行为。测试与 DMG 成功后创建指向构建提交的注释标签，并在同一次运行发布，无需额外 PAT；标签带 run_id，重跑复用且拒绝覆盖冲突标签，artifact 按运行尝试独立命名。新增 15 例 Python 发布逻辑测试，Swift 保持 117 例；actionlint 校验通过，未创建真实标签或触发云端发布 |
+| v1.12 | 2026-10-16 | 修复旧 SwiftPM Universal XCBuild 路径的语言模式校验失败：将 Swift 5 从目标级改为包级声明并由两个目标继承，避免 `given: [5], supported: []` 与后续空 `SWIFT_VERSION`；依据为 SwiftPM 6.0 官方 PackageBuilder / PIFBuilder 源码，见 `DEVELOPMENT.md`。新增真实清单解析回归测试（Python 共 16 例），CI 输出 Xcode / Swift 工具链信息。本地 Xcode 26.3 / Swift 6.2.4 下 117 例 Swift 测试、16 例发布测试及 actionlint / ShellCheck 通过，按 RELEASE_VERSION=1.0.0 / BUILD_NUMBER=2 完成 Universal DMG、双架构与签名 / SHA-256 校验；旧云端工具链未记录，需在包含修复的新提交上重新启动发布验证，未提交 / 推送 / 发布 |
+| v1.13 | 2026-10-16 | 修复锁屏后靠近无法亮屏的明确代码阻断：移除 AppSession 的锁屏跳过唤醒 guard，独立跟踪会话锁定、显示器熄屏和整机睡眠；改用公开 IOPMAssertionDeclareUserActivity 并记录 IOKit 返回码与系统亮屏通知，按新有效近距离样本进行最多一次冷却后补偿，远离 / 停止 / 整机睡眠取消。托管密码仅在会话锁定状态下读取 / 输入；新增 17 例隔离系统操作的 XCTest，Swift 共 134 例与16例发布测试通过，arm64 / x86_64 Universal release 构建通过。Apple 官方源码 / 文档依据见 DEVELOPMENT.md 与 ADR-10；真实锁屏亮屏、非公开会话通知及原生解锁效果待真机验证，不承诺手表 BLE 从整机睡眠或合盖唤醒 Mac；未重新生成安装包或提交 / 推送 |

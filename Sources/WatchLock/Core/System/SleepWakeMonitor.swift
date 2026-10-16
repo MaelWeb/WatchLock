@@ -7,69 +7,92 @@ final class SleepWakeMonitor {
     var onSleep: (() -> Void)?
     var onScreenLocked: (() -> Void)?
     var onScreenUnlocked: (() -> Void)?
+    var onDisplaySleep: (() -> Void)?
+    var onDisplayWake: (() -> Void)?
 
     private(set) var isScreenLocked = false
-    private var observers: [NSObjectProtocol] = []
+    private(set) var isDisplayAsleep = false
+    private(set) var isSystemSleeping = false
+    private let workspace: NotificationCenter
+    private let distributed: NotificationCenter
+    private var workspaceObservers: [NSObjectProtocol] = []
+    private var distributedObservers: [NSObjectProtocol] = []
+
+    init(
+        workspace: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        distributed: NotificationCenter = DistributedNotificationCenter.default()
+    ) {
+        self.workspace = workspace
+        self.distributed = distributed
+    }
 
     func start() {
-        let workspace = NSWorkspace.shared.notificationCenter
-        observers.append(workspace.addObserver(
+        guard workspaceObservers.isEmpty, distributedObservers.isEmpty else { return }
+        workspaceObservers.append(workspace.addObserver(
             forName: NSWorkspace.willSleepNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            self?.isSystemSleeping = true
             self?.onSleep?()
         })
-        observers.append(workspace.addObserver(
+        workspaceObservers.append(workspace.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            self?.isSystemSleeping = false
             self?.onWake?()
         })
-        observers.append(workspace.addObserver(
+        workspaceObservers.append(workspace.addObserver(
             forName: NSWorkspace.screensDidSleepNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.isScreenLocked = true
-            self?.onScreenLocked?()
+            self?.isDisplayAsleep = true
+            DiagnosticsLog.shared.append(.info, "显示器已熄屏")
+            self?.onDisplaySleep?()
         })
-        observers.append(workspace.addObserver(
+        workspaceObservers.append(workspace.addObserver(
             forName: NSWorkspace.screensDidWakeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.isScreenLocked = false
-            self?.onScreenUnlocked?()
+            // Apple NSWorkspace 文档：此通知只表示屏幕唤醒，不表示会话已解锁。
+            self?.isDisplayAsleep = false
+            DiagnosticsLog.shared.append(.info, "收到系统显示器唤醒通知（不代表会话解锁）")
+            self?.onDisplayWake?()
         })
 
-        let distributed = DistributedNotificationCenter.default
-        observers.append(distributed.addObserver(
+        // 延用既有非公开会话锁定通知；系统升级后的通知行为仍需实机验证。
+        distributedObservers.append(distributed.addObserver(
             forName: Notification.Name("com.apple.screenIsLocked"),
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.isScreenLocked = true
+            DiagnosticsLog.shared.append(.info, "收到会话锁定通知")
             self?.onScreenLocked?()
         })
-        observers.append(distributed.addObserver(
+        distributedObservers.append(distributed.addObserver(
             forName: Notification.Name("com.apple.screenIsUnlocked"),
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.isScreenLocked = false
+            DiagnosticsLog.shared.append(.info, "收到会话解锁通知")
             self?.onScreenUnlocked?()
         })
     }
 
     func stop() {
-        let workspace = NSWorkspace.shared.notificationCenter
-        let distributed = DistributedNotificationCenter.default
-        for observer in observers {
-            workspace.removeObserver(observer)
-            distributed.removeObserver(observer)
-        }
-        observers.removeAll()
+        for observer in workspaceObservers { workspace.removeObserver(observer) }
+        for observer in distributedObservers { distributed.removeObserver(observer) }
+        workspaceObservers.removeAll()
+        distributedObservers.removeAll()
+    }
+
+    deinit {
+        stop()
     }
 }

@@ -12,7 +12,9 @@ final class AppSession: ObservableObject {
     let scanner = WatchScanner()
     let engine = ProximityEngine(config: SettingsStore.shared.proximityConfig)
     let monitor = SleepWakeMonitor()
-    lazy var unlocker = UnlockService(settings: settings)
+    lazy var unlocker = UnlockService(settings: settings, isScreenLocked: { [weak self] in
+        self?.monitor.isScreenLocked ?? false
+    })
 
     @Published private(set) var status: ProximityStatus = .unknown
     @Published private(set) var smoothedRSSI: Double = 0
@@ -81,7 +83,7 @@ final class AppSession: ObservableObject {
 
         monitor.onWake = { [weak self] in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, self.isRunning else { return }
                 self.wakeGraceUntil = Date().addingTimeInterval(self.settings.unlockGraceAfterWake)
                 self.engine.reset()
                 self.updateStatus(.unknown)
@@ -94,6 +96,7 @@ final class AppSession: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 DiagnosticsLog.shared.append(.info, "系统进入睡眠，暂停蓝牙扫描")
+                self.unlocker.cancelPendingApproach()
                 self.scanner.stop()
                 self.engine.stop()
             }
@@ -131,6 +134,7 @@ final class AppSession: ObservableObject {
         housekeepingTimer?.invalidate()
         housekeepingTimer = nil
         stopSimulating()
+        unlocker.cancelPendingApproach()
         scanner.stop()
         engine.stop()
         monitor.stop()
@@ -415,6 +419,9 @@ final class AppSession: ObservableObject {
         }
         engine.update(rssi: rssi, at: date)
         updateStatus(engine.status)
+        if isRunning, !monitor.isSystemSleeping, engine.status == .near {
+            unlocker.retryPendingApproach(now: date)
+        }
     }
 
     private var lastPresenceLogAt: Date = .distantPast
@@ -456,12 +463,11 @@ final class AppSession: ObservableObject {
     private func handle(event: ProximityEngine.Event) {
         switch event {
         case .becameFar(let reason):
+            unlocker.cancelPendingApproach()
             performLock(reason: reason.title)
         case .becameNear:
-            guard !monitor.isScreenLocked else {
-                DiagnosticsLog.shared.append(.info, "屏幕已锁定，跳过唤醒")
-                return
-            }
+            guard isRunning, !monitor.isSystemSleeping else { return }
+            // 锁屏不阻止显示器唤醒；显示器亮起与会话解锁分别由 monitor 跟踪。
             unlocker.handleApproach()
         }
     }

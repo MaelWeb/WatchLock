@@ -5,36 +5,77 @@ import Foundation
 final class UnlockService {
     private let settings: SettingsStore
     private let keychain: KeychainStore
+    private let wakeDisplay: () -> Bool
+    private let isScreenLocked: () -> Bool
 
     /// 两次靠近处理之间的最小间隔，避免临界抖动时反复唤醒（FR-05 / FR-12）。
     var approachCooldown: TimeInterval = 10
     private var lastApproachAt: Date?
+    private var pendingApproachRetry = false
 
-    init(settings: SettingsStore, keychain: KeychainStore = .init()) {
+    init(
+        settings: SettingsStore,
+        keychain: KeychainStore = .init(),
+        wakeDisplay: @escaping () -> Bool = { ScreenLocker.wakeDisplay() },
+        isScreenLocked: @escaping () -> Bool = { false }
+    ) {
         self.settings = settings
         self.keychain = keychain
+        self.wakeDisplay = wakeDisplay
+        self.isScreenLocked = isScreenLocked
     }
 
-    /// 手表靠近时的处理入口。
+    /// 手表靠近时的处理入口，锁屏状态不影响点亮显示器。
     func handleApproach(now: Date = Date()) {
-        guard settings.wakeDisplayOnApproach else { return }
-
-        if let last = lastApproachAt, now.timeIntervalSince(last) < approachCooldown {
-            DiagnosticsLog.shared.append(.info, "靠近事件过于频繁，跳过本次唤醒")
+        pendingApproachRetry = false
+        guard canHandleApproach else { return }
+        guard cooldownElapsed(at: now) else {
+            pendingApproachRetry = true
+            DiagnosticsLog.shared.append(.info, "靠近事件处于冷却期，等待新的近距离样本后重试一次")
             return
         }
-        lastApproachAt = now
+        pendingApproachRetry = !requestWake(now: now)
+    }
 
-        guard ScreenLocker.wakeDisplay(seconds: 1) else { return }
+    /// 仅由新的有效近距离样本驱动；每次靠近事件最多补偿一次，失联时不唤醒。
+    func retryPendingApproach(now: Date = Date()) {
+        guard pendingApproachRetry else { return }
+        guard canHandleApproach else {
+            cancelPendingApproach()
+            return
+        }
+        guard cooldownElapsed(at: now) else { return }
+        pendingApproachRetry = false
+        DiagnosticsLog.shared.append(.info, "手表仍在近距离，重试显示器唤醒请求")
+        _ = requestWake(now: now)
+    }
+
+    func cancelPendingApproach() {
+        pendingApproachRetry = false
+    }
+
+    private var canHandleApproach: Bool {
+        settings.isEnabled && !settings.isPaused && settings.wakeDisplayOnApproach
+    }
+
+    private func cooldownElapsed(at now: Date) -> Bool {
+        guard let last = lastApproachAt else { return true }
+        return now.timeIntervalSince(last) >= approachCooldown
+    }
+
+    private func requestWake(now: Date) -> Bool {
+        lastApproachAt = now
+        guard wakeDisplay() else { return false }
 
         switch settings.unlockStrategy {
         case .wakeOnly:
             break
         case .systemAutoUnlock:
-            verifyAutoUnlockPrerequisites()
+            if isScreenLocked() { verifyAutoUnlockPrerequisites() }
         case .managedPassword:
             typeLoginPassword()
         }
+        return true
     }
 
     /// 检查系统「使用 Apple Watch 解锁」的前置条件，缺失则提示。
@@ -59,7 +100,7 @@ final class UnlockService {
 
     /// 从钥匙串读取密码并模拟键入。
     func typeLoginPassword() {
-        guard settings.unlockStrategy == .managedPassword else { return }
+        guard settings.unlockStrategy == .managedPassword, isScreenLocked() else { return }
         do {
             guard let password = try keychain.loadPassword(), !password.isEmpty else {
                 DiagnosticsLog.shared.append(.error, "钥匙串中没有可用的登录密码")
