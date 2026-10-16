@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>WatchLock 设计稿 · 设置向导</title><link rel="stylesheet" href="mockups.css"></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="watch" viewBox="0 0 16 16"><rect x="4.6" y="4" width="6.8" height="8" rx="2.4"/><path d="M6.2 4V1.8h3.6V4M6.2 12v2.2h3.6V12"/></symbol>
+<symbol id="check" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="currentColor" stroke="none"/><path d="M5.3 8.1 7.2 10l3.5-3.7" stroke="#fff" stroke-width="1.6"/></symbol>
+<symbol id="warn" viewBox="0 0 16 16"><path d="M8 2.6 14.4 13.4H1.6z"/><path d="M8 6.4v3.2M8 11.2v.5"/></symbol>
+<symbol id="bt" viewBox="0 0 16 16"><path d="M8 1.4v13.2M8 1.4 11.4 4.8 4.6 11.2M8 14.6 11.4 11.2 4.6 4.8"/></symbol>
+<symbol id="lockopen" viewBox="0 0 16 16"><rect x="3.4" y="7" width="9.2" height="7" rx="2"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.2-.8"/></symbol>
+</defs></svg>
+
+<!-- 步骤 1：未授权（HIG 预说明屏：只有一个按钮） -->
+<div class="col">
+<div class="window w560 chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="hero">
+    <div class="hero-icon brand"><img src="AppIcon-master.png" alt=""></div>
+    <div><div class="hero-t">欢迎使用 WatchLock</div><div class="hero-s">戴上手表走开，Mac 自动锁屏；回来自动唤醒。</div></div>
+  </div>
+  <div class="win-body">
+    <div class="steps">
+      <div class="step"><div class="bul on">1</div><div class="nm on">授权</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="bul">2</div><div class="nm">绑定</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="bul">3</div><div class="nm">就绪</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="h" style="font-size:15px">先授权蓝牙</div>
+    <div class="cap" style="font-size:12.5px;color:#3c3c43;margin-top:4px">WatchLock 靠手表的蓝牙信号判断你在不在电脑旁，没有蓝牙它无法工作。</div>
+    <div class="card warn row mt12" style="gap:8px;padding:10px 12px">
+      <svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg>
+      <div style="font-size:12.5px">尚未授予蓝牙权限</div>
+    </div>
+    <div class="row mt12" style="gap:6px;font-size:12px;color:#6e6e73">
+      <span>▸ 为什么需要蓝牙权限？</span>
+    </div>
+    <div class="divider"></div>
+    <div class="row">
+      <div class="sp"></div>
+      <div class="btn p">打开「系统设置 → 隐私与安全性 → 蓝牙」</div>
+    </div>
+  </div>
+</div>
+<div class="caption">步骤 1 · 未授权：HIG 预说明屏规范 —— 只给一个按钮，不放「跳过 / 关闭」等绕开路径</div>
+</div>
+
+<!-- 步骤 2：绑定（交互即教学） -->
+<div class="col">
+<div class="window w560 chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="hero">
+    <div class="hero-icon brand"><img src="AppIcon-master.png" alt=""></div>
+    <div><div class="hero-t">欢迎使用 WatchLock</div><div class="hero-s">戴上手表走开，Mac 自动锁屏；回来自动唤醒。</div></div>
+  </div>
+  <div class="win-body">
+    <div class="steps">
+      <div class="step"><div class="bul done"><svg class="ic" style="width:9px;height:9px;color:#fff"><use href="#check"/></svg></div><div class="nm">授权</div></div>
+      <div class="step-line done"></div>
+      <div class="step"><div class="bul on">2</div><div class="nm on">绑定</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="bul">3</div><div class="nm">就绪</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="h" style="font-size:15px">选一台是你的手表</div>
+    <div class="cap" style="font-size:12.5px;color:#3c3c43;margin-top:4px">手表戴在手腕上贴近 Mac，信号最强那台通常就是它。</div>
+    <div class="list mt12">
+      <div class="list-row" style="background:rgba(0,122,255,.06)">
+        <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
+        <div class="stack gap4" style="flex:1"><div class="t">Apple Watch</div><div class="s">名称 · 厂商数据</div></div>
+        <div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+        <div class="s num" style="width:52px;text-align:right">-48 dBm</div>
+        <div class="btn sm p">已绑定</div>
+      </div>
+      <div class="list-row">
+        <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
+        <div class="stack gap4" style="flex:1"><div class="t">未命名设备 A1B2…</div><div class="s">靠近 Mac（按信号排序）</div></div>
+        <div class="meter"><span class="warn"></span><span class="warn"></span><span></span><span></span></div>
+        <div class="s num" style="width:52px;text-align:right">-72 dBm</div>
+        <div class="btn sm">选择</div>
+      </div>
+    </div>
+    <div class="row mt8"><div style="font-size:12px;color:#007aff">看不到设备？显示全部</div><div class="sp"></div></div>
+    <div class="divider"></div>
+    <div class="row" style="gap:8px">
+      <div class="btn">上一步</div>
+      <div style="font-size:12.5px;color:#6e6e73">跳过</div>
+      <div class="sp"></div>
+      <div class="btn p">继续</div>
+    </div>
+  </div>
+</div>
+<div class="caption">步骤 2 · 绑定：真正的操作就是教学；主按钮在绑定成功后才可用</div>
+</div>
+
+<!-- 步骤 3：就绪（删掉非必要自定义，只留一个有用的动作） -->
+<div class="col">
+<div class="window w560 chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="hero">
+    <div class="hero-icon brand"><img src="AppIcon-master.png" alt=""></div>
+    <div><div class="hero-t">欢迎使用 WatchLock</div><div class="hero-s">戴上手表走开，Mac 自动锁屏；回来自动唤醒。</div></div>
+  </div>
+  <div class="win-body">
+    <div class="steps">
+      <div class="step"><div class="bul done"><svg class="ic" style="width:9px;height:9px;color:#fff"><use href="#check"/></svg></div><div class="nm">授权</div></div>
+      <div class="step-line done"></div>
+      <div class="step"><div class="bul done"><svg class="ic" style="width:9px;height:9px;color:#fff"><use href="#check"/></svg></div><div class="nm">绑定</div></div>
+      <div class="step-line done"></div>
+      <div class="step"><div class="bul on">3</div><div class="nm on">就绪</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="row" style="gap:12px">
+      <div class="bigcheck"><svg class="ic" style="width:22px;height:22px;color:#34c759"><use href="#check"/></svg></div>
+      <div class="stack gap4">
+        <div class="h" style="font-size:15px">一切就绪</div>
+        <div class="cap" style="font-size:12.5px;color:#3c3c43">已绑定 Apple Watch · 默认阈值：在身边 -55 / 已离开 -70 dBm</div>
+      </div>
+    </div>
+    <div class="card mt12" style="padding:10px 12px">
+      <div class="row" style="gap:8px">
+        <svg class="ic" style="color:#007aff"><use href="#bt"/></svg>
+        <div class="stack gap4" style="flex:1">
+          <div style="font-size:12.5px">开启系统「使用 Apple Watch 解锁」</div>
+          <div class="cap">解锁只能由系统完成，这一步需要你在系统设置里打开。</div>
+        </div>
+        <div class="btn sm">打开系统设置</div>
+      </div>
+    </div>
+    <div class="cap mt12">其余参数已按默认值设置好，随时可在菜单栏 → 设置里调整。</div>
+    <div class="divider"></div>
+    <div class="row" style="gap:8px">
+      <div class="btn">上一步</div>
+      <div class="sp"></div>
+      <div class="btn p">开始使用</div>
+    </div>
+  </div>
+</div>
+<div class="caption">步骤 3 · 就绪：不再罗列 6 个参数（那是设置页的职责），只留真正需要用户去系统做的一步</div>
+</div>
+
+</body>
+</html>

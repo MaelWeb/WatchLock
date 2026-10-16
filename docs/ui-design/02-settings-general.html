@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>WatchLock 设计稿 · 设置 / 通用</title><link rel="stylesheet" href="mockups.css"></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/></symbol>
+<symbol id="watch" viewBox="0 0 16 16"><rect x="4.6" y="4" width="6.8" height="8" rx="2.4"/><path d="M6.2 4V1.8h3.6V4M6.2 12v2.2h3.6V12"/></symbol>
+<symbol id="lockopen" viewBox="0 0 16 16"><rect x="3.4" y="7" width="9.2" height="7" rx="2"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.2-.8"/></symbol>
+<symbol id="ruler" viewBox="0 0 16 16"><rect x="1.4" y="5.4" width="13.2" height="5.2" rx="1.2"/><path d="M4.6 5.4v2M7.2 5.4v2.6M9.8 5.4v2M12.4 5.4v2.6"/></symbol>
+<symbol id="wave" viewBox="0 0 16 16"><path d="M2 9c1.4 0 1.4-4 2.8-4s1.4 8 2.8 8 1.4-8 2.8-8 1.4 4 2.8 4"/></symbol>
+<symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
+<symbol id="steth" viewBox="0 0 16 16"><path d="M4 2.5v4a2.6 2.6 0 0 0 5.2 0v-4"/><circle cx="11.6" cy="10.4" r="2.2"/><path d="M9.2 8.6l1 1"/></symbol>
+</defs></svg>
+
+<div class="col">
+<div class="window chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="split">
+    <div class="sidebar">
+<div class="side-brand"><img src="AppIcon-master.png" alt=""><span>WatchLock</span></div>
+      <div class="side-item on"><svg class="ic"><use href="#gear"/></svg>通用</div>
+      <div class="side-item"><svg class="ic"><use href="#watch"/></svg>设备</div>
+      <div class="side-item"><svg class="ic"><use href="#lockopen"/></svg>解锁</div>
+      <div class="side-item"><svg class="ic"><use href="#ruler"/></svg>校准</div>
+      <div class="side-item"><svg class="ic"><use href="#steth"/></svg>诊断</div>
+      <div class="side-sep"></div>
+      <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
+    </div>
+    <div class="detail">
+      <div class="form-row"><div class="label" style="flex:1">启用自动锁定</div><div class="sw"><i></i></div></div>
+
+      <div class="section mt16">
+        <div class="sec-title">距离阈值</div>
+        <div class="card">
+          <div class="band">
+            <div class="track"></div>
+            <div class="fill" style="left:46.2%;width:23%"></div>
+            <div class="needle" style="left:80%"></div>
+            <div class="knob f" style="left:calc(46.2% - 8px)"></div>
+            <div class="knob n" style="left:calc(69.2% - 8px)"></div>
+          </div>
+          <div class="row mt8" style="gap:6px">
+            <span class="dot" style="background:#34c759"></span><span class="cap num">在身边 -55 dBm</span>
+            <span class="dot" style="background:#ff9f0a;margin-left:8px"></span><span class="cap num">已离开 -70 dBm</span>
+            <div class="sp"></div><span class="cap num">间隔 15 dBm</span>
+          </div>
+          <div class="row mt8" style="gap:6px"><span class="dot" style="background:#007aff"></span><span class="cap num">当前 -48 dBm（实时信号，只读）</span></div>
+        </div>
+        <div class="form-row mt8"><div class="label num" style="flex:1">在身边 -55 dBm</div><div class="picker">−</div><div class="picker">＋</div></div>
+        <div class="form-row"><div class="label num" style="flex:1">已离开 -70 dBm</div><div class="picker">−</div><div class="picker">＋</div></div>
+        <div class="form-row"><div class="label num" style="flex:1">离开后等待 5 秒再锁定</div><div class="picker">−</div><div class="picker">＋</div></div>
+        <div class="form-row"><div class="label num" style="flex:1">信号丢失 20 秒视为离开</div><div class="picker">−</div><div class="picker">＋</div></div>
+        <div class="form-row"><div class="label" style="flex:1">收不到信号时按「已离开」锁定</div><div class="sw"><i></i></div></div>
+        <div class="cap mt8">阈值越接近越容易误锁，已强制保留 5 dBm 间隔。手表与 iPhone 连接时广播会被系统节流，丢失前信号很强时超时会自动放宽到 50 秒。</div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">锁定方式</div>
+        <div class="form-row"><div class="label" style="flex:1">方式</div><div class="picker">模拟 ⌃⌘Q <span style="color:#8e8e93">▾</span></div></div>
+        <div class="cap mt8">调用 osascript 模拟 ⌃⌘Q，与手动锁屏完全一致；无沙箱时可用。</div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">其他</div>
+        <div class="form-row"><div class="label" style="flex:1">菜单栏显示状态文字</div><div class="sw"><i></i></div></div>
+        <div class="form-row"><div class="label" style="flex:1">锁定 / 异常时发送通知</div><div class="sw"><i></i></div></div>
+        <div class="form-row"><div class="label" style="flex:1">立即锁定前需要确认</div><div class="sw off"><i></i></div></div>
+        <div class="form-row"><div class="label" style="flex:1">开机启动</div><div class="sw off"><i></i></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="caption">通用 · 同轴阈值带（已离开 / 在身边 / 当前信号三把手，拖动自动保留 ≥5 dBm 间隔）</div>
+</div>
+</body>
+</html>

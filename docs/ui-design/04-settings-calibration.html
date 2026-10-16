@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>WatchLock 设计稿 · 设置 / 校准</title><link rel="stylesheet" href="mockups.css"></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/></symbol>
+<symbol id="watch" viewBox="0 0 16 16"><rect x="4.6" y="4" width="6.8" height="8" rx="2.4"/><path d="M6.2 4V1.8h3.6V4M6.2 12v2.2h3.6V12"/></symbol>
+<symbol id="lockopen" viewBox="0 0 16 16"><rect x="3.4" y="7" width="9.2" height="7" rx="2"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.2-.8"/></symbol>
+<symbol id="ruler" viewBox="0 0 16 16"><rect x="1.4" y="5.4" width="13.2" height="5.2" rx="1.2"/><path d="M4.6 5.4v2M7.2 5.4v2.6M9.8 5.4v2M12.4 5.4v2.6"/></symbol>
+<symbol id="steth" viewBox="0 0 16 16"><path d="M4 2.5v4a2.6 2.6 0 0 0 5.2 0v-4"/><circle cx="11.6" cy="10.4" r="2.2"/><path d="M9.2 8.6l1 1"/></symbol>
+<symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
+<symbol id="record" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="8" r="2.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="check" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="currentColor" stroke="none"/><path d="M5.3 8.1 7.2 10l3.5-3.7" stroke="#fff" stroke-width="1.6"/></symbol>
+</defs></svg>
+
+<div class="col">
+<div class="window chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="split">
+    <div class="sidebar">
+<div class="side-brand"><img src="AppIcon-master.png" alt=""><span>WatchLock</span></div>
+      <div class="side-item"><svg class="ic"><use href="#gear"/></svg>通用</div>
+      <div class="side-item"><svg class="ic"><use href="#watch"/></svg>设备</div>
+      <div class="side-item"><svg class="ic"><use href="#lockopen"/></svg>解锁</div>
+      <div class="side-item on"><svg class="ic"><use href="#ruler"/></svg>校准</div>
+      <div class="side-item"><svg class="ic"><use href="#steth"/></svg>诊断</div>
+      <div class="side-sep"></div>
+      <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
+    </div>
+    <div class="detail">
+      <div class="card">
+        <div class="h" style="font-size:13px">距离校准向导</div>
+        <div class="cap mt8" style="margin-top:4px">把手表放到指定位置后点「开始采样」，应用会采集 10 秒信号并自动写入参数。</div>
+
+        <div class="stack gap6 mt12">
+          <div class="radio on"><span class="cir"></span><div class="stack gap4"><div class="label">以当前位置为「在身边」基准</div><div class="cap">按日常办公姿势坐好，点击后保持手表不动；结束后会自动生成在身边 / 已离开阈值。</div></div></div>
+          <div class="radio"><span class="cir"></span><div class="stack gap4"><div class="label">标定 1 米处</div><div class="cap">把手表放在离 Mac 约 1 米的位置，点击后保持不动。</div></div></div>
+          <div class="radio"><span class="cir"></span><div class="stack gap4"><div class="label">在此处算作「在身边」</div><div class="cap">坐回正常办公位置，点击后保持不动。</div></div></div>
+          <div class="radio"><span class="cir"></span><div class="stack gap4"><div class="label">在此处算作「已离开」</div><div class="cap">走到你希望自动锁屏的位置，点击后保持不动。</div></div></div>
+        </div>
+
+        <div class="row mt12" style="gap:8px">
+          <div class="btn p"><svg class="ic"><use href="#record"/></svg>开始采样</div>
+          <div class="sp"></div>
+        </div>
+
+        <div class="stack gap6 mt12">
+          <div class="prog"><i style="width:70%"></i></div>
+          <div class="row" style="gap:8px">
+            <span class="cap num">剩余 3 秒</span><span class="cap num">已采 7 个样本</span><span class="cap num">当前 -49 dBm</span>
+          </div>
+        </div>
+
+        <div class="row mt12" style="gap:6px">
+          <svg class="ic" style="color:#34c759"><use href="#check"/></svg>
+          <span class="cap" style="color:#34c759">已按当前位置设置：1 米标定 -49、在身边 -54、已离开 -71 dBm（10 个样本）</span>
+        </div>
+
+        <div class="divider" style="margin:12px 0 8px"></div>
+        <div class="row" style="gap:8px">
+          <span class="cap num" style="flex:1">当前：1 米标定 -49 · 在身边 -54 · 已离开 -71</span>
+          <div class="btn sm">重置已采集样本</div>
+        </div>
+      </div>
+
+      <div class="card mt12">
+        <div class="h" style="font-size:13px">距离模型（手动）</div>
+        <div class="cap mt8" style="margin-top:4px">自动校准通常够用；只有在估算距离明显偏离时才需要微调。</div>
+        <div class="form-row mt12"><div class="label num" style="flex:1">1 米处标定值：-55 dBm</div><div class="picker">−</div><div class="picker">＋</div></div>
+        <div class="form-row"><div class="label" style="width:82px">路径损耗指数</div><div class="slider"><i style="left:38%"></i></div><div class="num" style="width:34px;text-align:right">2.0</div></div>
+        <div class="form-row"><div class="label" style="width:82px">平滑系数</div><div class="slider"><i style="left:26%"></i></div><div class="num" style="width:34px;text-align:right">0.30</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="caption">校准 · 采样目标由横排按钮改为竖排单选卡；采样过程给出进度、已采样本数与实时信号</div>
+</div>
+</body>
+</html>

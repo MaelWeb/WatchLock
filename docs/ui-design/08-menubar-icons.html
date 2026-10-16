@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WatchLock 菜单栏状态图标</title>
+<style>
+  :root { --ink: #1d1d1f; --mute: #6e6e73; --line: #d2d2d7; --bg: #f5f5f7; --accent: #f26b4e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 36px 36px; background: var(--bg); color: var(--ink);
+         font: 13px/1.5 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; width: 1180px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--mute); margin-bottom: 22px; }
+  h2 { font-size: 13px; letter-spacing: .04em; color: var(--mute); text-transform: uppercase; margin: 26px 0 10px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+
+  /* 图标共用：18 单位画布，线宽 1.8，圆头 */
+  svg.ic { display: block; fill: none; stroke: currentColor; stroke-width: 1.8;
+           stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 推导 */
+  .derive { display: flex; align-items: center; gap: 28px; }
+  .derive img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+  .arrow { color: var(--mute); font-size: 22px; }
+  .parts { display: flex; gap: 22px; }
+  .part { text-align: center; color: var(--mute); font-size: 12px; }
+  .part svg { width: 84px; height: 84px; color: var(--ink); background: #fafafa; border: 1px dashed var(--line);
+              border-radius: 10px; margin-bottom: 6px; }
+  .rules { margin: 0 0 0 auto; padding-left: 18px; color: var(--mute); width: 360px; }
+  .rules li { margin-bottom: 3px; }
+  .rules b { color: var(--ink); font-weight: 600; }
+
+  /* 五态大图 */
+  .states { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .state { text-align: center; }
+  .state .big { background: #fff; border: 1px solid var(--line); border-radius: 12px; height: 132px;
+                display: flex; align-items: center; justify-content: center; }
+  .state .big svg { width: 88px; height: 88px; color: var(--ink); }
+  .state .name { font-weight: 600; margin-top: 8px; }
+  .state .desc { color: var(--mute); font-size: 12px; }
+
+  /* 栅格辅助：只在第一个态上叠 */
+  .grid-hint { position: relative; }
+
+  /* 菜单栏模拟 */
+  .bars { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .bar { border-radius: 10px; padding: 12px 14px 14px; }
+  .bar.light { background: #e8e8ea; color: #1d1d1f; border: 1px solid #d0d0d4; }
+  .bar.dark { background: #2a2a2d; color: #f2f2f4; border: 1px solid #1a1a1c; }
+  .bar .cap { font-size: 11px; opacity: .65; margin-bottom: 8px; }
+  .menurow { display: flex; align-items: center; gap: 4px; height: 28px; margin-bottom: 6px;
+             padding: 0 10px; border-radius: 6px; width: fit-content; }
+  .bar.light .menurow { background: rgba(255,255,255,.5); }
+  .bar.dark .menurow { background: rgba(255,255,255,.08); }
+  .menurow svg { width: 18px; height: 18px; }
+  .menurow .t { font-size: 13px; font-weight: 500; }
+  .menurow .k { font-size: 11px; opacity: .55; margin-left: 10px; }
+  .iconrow { display: flex; gap: 14px; align-items: center; margin-top: 10px; }
+  .iconrow .sz { display: flex; align-items: center; gap: 8px; font-size: 11px; opacity: .65; }
+  .iconrow svg { color: inherit; }
+
+  .foot { color: var(--mute); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+  </defs>
+
+  <!-- 在身边：环形锁体 + 开启锁梁 -->
+  <symbol id="s-near" viewBox="0 0 18 18">
+    <circle cx="9" cy="11.2" r="5.1"/>
+    <path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/>
+  </symbol>
+
+  <!-- 已离开：锁梁闭合 + 实心锁孔 -->
+  <symbol id="s-far" viewBox="0 0 18 18">
+    <circle cx="9" cy="11.2" r="5.1"/>
+    <path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/>
+    <circle cx="9" cy="11.2" r="1.4" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <!-- 搜索中：锁梁开启 + 锁体内三点（正在查找） -->
+  <symbol id="s-unknown" viewBox="0 0 18 18">
+    <circle cx="9" cy="11.2" r="5.1"/>
+    <path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/>
+    <circle cx="6.2" cy="11.2" r="0.95" fill="currentColor" stroke="none"/>
+    <circle cx="9"   cy="11.2" r="0.95" fill="currentColor" stroke="none"/>
+    <circle cx="11.8" cy="11.2" r="0.95" fill="currentColor" stroke="none"/>
+  </symbol>
+
+  <!-- 暂停：锁梁开启 + 锁体内双竖条 -->
+  <symbol id="s-paused" viewBox="0 0 18 18">
+    <circle cx="9" cy="11.2" r="5.1"/>
+    <path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/>
+    <path d="M7.7 9V13.4M10.3 9V13.4" stroke-width="1.7"/>
+  </symbol>
+
+  <!-- 关闭：闭合锁整体变淡（42%）+ 环内短横线 -->
+  <symbol id="s-disabled" viewBox="0 0 18 18">
+    <g opacity=".42">
+      <circle cx="9" cy="11.2" r="5.1"/>
+      <path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/>
+      <path d="M6.9 11.2H11.1" stroke-width="1.7"/>
+    </g>
+  </symbol>
+
+  <!-- 推导用的零件 -->
+  <symbol id="p-ring" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/></symbol>
+  <symbol id="p-shackle-open" viewBox="0 0 18 18"><path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/></symbol>
+  <symbol id="p-shackle-closed" viewBox="0 0 18 18"><path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/></symbol>
+</svg>
+
+<h1>菜单栏状态图标</h1>
+<div class="sub">从应用 logo 提炼：<b>环形锁体 + 锁梁</b>。锁梁开 / 合表达「手表在不在」，其余三态靠锁体内的小标记区分，「已关闭」整体变淡。纯单色模板图，系统自动适配浅色 / 深色菜单栏。</div>
+
+<h2>从 logo 到图标</h2>
+<div class="card derive">
+  <img src="AppIcon-master.png" alt="logo">
+  <div class="arrow">→</div>
+  <div class="parts">
+    <div class="part"><svg class="ic" style="stroke-width:1.8"><use href="#p-ring"/></svg>环形锁体<br>（logo 里最醒目的圆环）</div>
+    <div class="part"><svg class="ic"><use href="#p-shackle-open"/></svg>开启锁梁<br>（左腿断开 = 开锁）</div>
+    <div class="part"><svg class="ic"><use href="#p-shackle-closed"/></svg>闭合锁梁<br>（锁住）</div>
+  </div>
+  <ul class="rules">
+    <li><b>画布</b> 18×18，锁体圆心 (9, 11.2)、半径 5.1；锁梁半径 3.7；所有笔画外沿落在 [0.7, 17.3] 内，不贴边不裁切</li>
+    <li><b>线宽</b> 1.8，圆头圆角，与 SF Symbols 常规字重一致</li>
+    <li><b>取舍</b> logo 里的 w 连笔尾巴在 18pt 下会糊成一团，只保留「环 + 梁」</li>
+  </ul>
+</div>
+
+<h2>五种状态</h2>
+<div class="states">
+  <div class="state"><div class="big"><svg class="ic"><use href="#s-near"/></svg></div>
+    <div class="name">在身边</div><div class="desc">已解锁 · 锁梁开启</div></div>
+  <div class="state"><div class="big"><svg class="ic"><use href="#s-far"/></svg></div>
+    <div class="name">已离开</div><div class="desc">已锁定 · 锁梁闭合 + 锁孔</div></div>
+  <div class="state"><div class="big"><svg class="ic"><use href="#s-unknown"/></svg></div>
+    <div class="name">搜索中</div><div class="desc">锁体内三点 = 正在查找</div></div>
+  <div class="state"><div class="big"><svg class="ic"><use href="#s-paused"/></svg></div>
+    <div class="name">已暂停</div><div class="desc">环内双竖条</div></div>
+  <div class="state"><div class="big"><svg class="ic"><use href="#s-disabled"/></svg></div>
+    <div class="name">已关闭</div><div class="desc">闭合锁整体变淡 + 环内短横线</div></div>
+</div>
+
+<h2>菜单栏实际效果（18pt）</h2>
+<div class="bars">
+  <div class="bar light">
+    <div class="cap">浅色菜单栏 · 带状态文字（设置里开启「菜单栏显示状态文字」时）</div>
+    <div class="menurow"><svg class="ic"><use href="#s-near"/></svg><span class="t">已解锁</span><span class="k">在身边</span></div><br>
+    <div class="menurow"><svg class="ic"><use href="#s-far"/></svg><span class="t">已锁定</span><span class="k">已离开</span></div><br>
+    <div class="menurow"><svg class="ic"><use href="#s-unknown"/></svg><span class="t">搜索中</span><span class="k">搜索中</span></div><br>
+    <div class="menurow"><svg class="ic"><use href="#s-paused"/></svg><span class="t">暂停</span><span class="k">已暂停</span></div><br>
+    <div class="menurow"><svg class="ic"><use href="#s-disabled"/></svg><span class="t">关闭</span><span class="k">已关闭</span></div>
+  </div>
+  <div class="bar dark">
+    <div class="cap">深色菜单栏 · 仅图标</div>
+    <div class="iconrow">
+      <div class="menurow"><svg class="ic"><use href="#s-near"/></svg></div>
+      <div class="menurow"><svg class="ic"><use href="#s-far"/></svg></div>
+      <div class="menurow"><svg class="ic"><use href="#s-unknown"/></svg></div>
+      <div class="menurow"><svg class="ic"><use href="#s-paused"/></svg></div>
+      <div class="menurow"><svg class="ic"><use href="#s-disabled"/></svg></div>
+    </div>
+    <div class="cap" style="margin-top:16px">同一组图标放大 2 倍（模拟 Retina 下的 36px 像素）</div>
+    <div class="iconrow">
+      <svg class="ic" style="width:36px;height:36px"><use href="#s-near"/></svg>
+      <svg class="ic" style="width:36px;height:36px"><use href="#s-far"/></svg>
+      <svg class="ic" style="width:36px;height:36px"><use href="#s-unknown"/></svg>
+      <svg class="ic" style="width:36px;height:36px"><use href="#s-paused"/></svg>
+      <svg class="ic" style="width:36px;height:36px"><use href="#s-disabled"/></svg>
+    </div>
+  </div>
+</div>
+
+<div class="foot">实现方式：用代码画成 <code>NSImage</code> 模板图（<code>isTemplate = true</code>），不依赖位图资源，任何缩放都保持锐利；颜色由系统按菜单栏明暗自动着色。</div>
+
+</body>
+</html>
