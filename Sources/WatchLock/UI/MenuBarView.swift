@@ -44,7 +44,7 @@ struct MenuBarView: View {
 
     private var status: some View {
         StatusCard(
-            symbol: session.status.symbolName,
+            status: session.status,
             title: session.status.title,
             subtitle: subtitle,
             tint: statusTint

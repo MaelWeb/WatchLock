@@ -45,16 +45,6 @@ enum ProximityStatus: String, CaseIterable, Identifiable {
         case .disabled: return "关闭"
         }
     }
-
-    var symbolName: String {
-        switch self {
-        case .unknown: return "wave.3.right.circle"
-        case .near: return "lock.open.rotation"
-        case .far: return "lock.circle"
-        case .paused: return "pause.circle"
-        case .disabled: return "poweroff.circle"
-        }
-    }
 }
 
 /// 蓝牙扫描发现的候选设备。

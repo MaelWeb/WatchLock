@@ -93,8 +93,8 @@ macOS 自带的「使用 Apple Watch 解锁」只解决了**解锁**问题，缺
 | 系统版本 | macOS 14.0+（`MenuBarExtra` / `SMAppService` 依赖） |
 | 架构 | 通用二进制（arm64 + x86_64） |
 | 权限 | 蓝牙（必需）；辅助功能（使用默认「⌃⌘Q」锁屏或托管密码时必需）；通知（可选） |
-| 沙箱 | 开启 App Sandbox + `com.apple.security.device.bluetooth` |
-| 分发 | 开发期 ad-hoc 签名本地运行；正式分发需 Developer ID 签名 + 公证 + DMG |
+| 沙箱 | 默认关闭 App Sandbox：锁屏依赖 `osascript`（模拟 ⌃⌘Q）与 `pmset`，沙箱下 System Events 会以 -600 失败；`build-app.sh --sandbox` 仅用于兼容性对照 |
+| 分发 | **当前仅通过 GitHub Release 分发，不发布到 App Store**（决策日期 2026-10-16）；GitHub Actions 构建 arm64 + x86_64 通用应用并打包 DMG，发布 DMG 与 SHA-256 校验文件。CI 默认 ad-hoc 签名，无需 Apple 证书或公证；需明示 Gatekeeper 与升级后重新授权的限制。Developer ID 签名 / 公证作为后续可选增强；本地开发仍可使用稳定证书 |
 
 ---
 
@@ -137,7 +137,7 @@ stateDiagram-v2
 | Apple 未提供第三方自动解锁 API | 无法在第三方进程内完成「免密解锁」 | 解锁走「点亮屏幕 + 系统原生自动解锁」；托管密码作为可选高风险方案 |
 | Apple Watch 广播不稳定 | 手表与 iPhone 连接时广播内容受限，设备名可能不可见 | 多证据识别（名称 / 厂商数据 / 服务 UUID）+ 用户手动绑定；M3 评估 watchOS 配套 App |
 | 蓝牙 RSSI 受遮挡影响大 | 人体、金属、显示器都会造成 5–15 dBm 波动 | EWMA 平滑 + 双阈值迟滞 + 宽限期 + 可校准 |
-| macOS 无公开锁屏 API | 只有工程手段 | 默认 `CGSession -suspend`，可切换 `pmset` 或自定义命令（见 §7.6） |
+| macOS 无公开锁屏 API | 只有工程手段 | 默认模拟 ⌃⌘Q（需辅助功能）；可选私有 `SACLockScreenImmediate`（免授权但不公开、可能失效）；可切换 `pmset` 或自定义命令（见 FR-04） |
 | 沙箱内 Apple Events 受限 | 托管密码需要 Apple Events + 辅助功能 | 该功能默认关闭，且需要用户在系统设置中显式授权 |
 
 ---
@@ -209,13 +209,15 @@ stateDiagram-v2
    - 功能开关已开启且未处于暂停；
    - 不在唤醒宽限期内；
    - 当前屏幕未锁定（通过 `com.apple.screenIsLocked/Unlocked` 与 `screensDidSleep/Wake` 判定）。
-2. 锁定方式可配置（默认 `CGSession -suspend`）：
+2. 锁定方式可配置（默认 `controlCommandQ` 模拟 ⌃⌘Q）：
 
-| 方式 | 命令 | 适用场景 |
+| 方式 | 实现 | 适用场景 |
 | --- | --- | --- |
-| 锁定屏幕（默认） | `CGSession -suspend` | 与系统锁屏一致，唤醒需密码 |
+| 锁定屏幕（⌃⌘Q，默认） | `osascript` 模拟 ⌃⌘Q | 与手动锁屏一致；**需要辅助功能权限**，缺权限时预检拦截并通知 |
+| 锁定屏幕（系统接口，可选） | 进程内调用私有 `SACLockScreenImmediate`（`dlopen`/`dlsym`） | 免辅助功能授权；接口未公开，系统升级可能失效，失效时通知并引导回退 |
 | 仅关闭显示器 | `pmset displaysleepnow` | 只想熄屏、不锁会话 |
 | 进入睡眠 | `pmset sleepnow` | 期望整机休眠省电 |
+| 锁定屏幕（CGSession，旧系统） | `CGSession -suspend` | 仅 macOS 14/15；macOS 26 已移除该可执行文件 |
 | 自定义命令 | 用户填写 | 对接企业脚本 |
 
 3. 执行失败时记录日志并（可选）通知，不重复高频重试。
@@ -248,7 +250,7 @@ stateDiagram-v2
 
 ### FR-07 菜单栏状态与控制（P0）
 
-1. 常驻图标随状态变化：`搜索中 / 已解锁 / 已锁定 / 暂停 / 关闭`。
+1. 常驻图标随状态变化五态：`在身边 / 已离开 / 搜索中 / 已暂停 / 已关闭`。图标由 logo 提炼（环形锁体 + 锁梁），代码绘制为模板图，设计见 `docs/ui-design/08-menubar-icons.html`。同一套图标同时用于面板状态卡（`StatusIcon`），两处图形与状态映射必须一致。
 2. 面板内容：状态标题、绑定设备名、信号强度、估算距离、最后更新时间、蓝牙异常提示。
 3. 快捷操作：启用开关、暂停菜单、立即锁定、设置、退出。
 
@@ -256,11 +258,12 @@ stateDiagram-v2
 
 | 页签 | 内容 |
 | --- | --- |
-| 通用 | 启用开关、近/远阈值、离开等待、信号丢失超时、锁定方式及自定义命令、菜单栏文字、通知、开机启动 |
+| 通用 | 启用开关、近/远阈值、离开等待、信号丢失超时、锁定方式（默认 ⌃⌘Q；选「系统接口」时显示该私有 API 的可用性与失效风险）及自定义命令、菜单栏文字、通知、开机启动 |
 | 设备 | 已绑定设备、候选列表与绑定/解绑、排查提示 |
 | 解锁 | 点亮屏幕开关、解锁策略、唤醒宽限、托管密码录入（高风险）、系统自动解锁引导入口 |
-| 高级 | 距离模型校准（1m 标定值、路径损耗指数、平滑系数）、诊断日志（查看/清空/导出） |
-| 关于 | 版本、用途说明、仓库链接 |
+| 校准 | 距离校准向导、距离模型手动调整（1m 标定值、路径损耗指数、平滑系数） |
+| 诊断 | 误锁反馈与自动调参统计、诊断日志（查看/清空/导出）、广播抓包、调试开关 |
+| 关于 | 品牌标识、版本、用途说明、重新运行首次启动引导 |
 
 ### FR-09 系统通知（P2）
 
@@ -277,7 +280,7 @@ stateDiagram-v2
 
 1. 内存环形日志，最多 300 条，含时间戳与级别（信息/警告/错误）。
 2. 记录：启动退出、扫描状态变化、阈值切换、锁定触发与原因、权限错误、解锁失败。
-3. 支持「高级」页查看、清空、导出为 `.txt`（用户自选路径）。
+3. 支持「诊断」页查看、清空、导出为 `.txt`（用户自选路径）。
 4. 日志中**不得**出现密码、钥匙串内容。
 
 ### FR-12 低耗电与性能（P1）
@@ -300,14 +303,14 @@ stateDiagram-v2
 
 1. 引导用户把手表放在 1 米处采样 10 秒，自动写入 `measuredPower`。
 2. 支持「在此处算作在身边 / 已离开」两点标定，自动生成阈值。
-3. **实现说明**：采样结果取中位数抑制离群值；两点标定按「在身边中位数 - 3 dBm / 已离开中位数 + 3 dBm」生成阈值，并保证两者至少相差 8 dBm（不足时优先下压「已离开」阈值以降低误锁率）。入口在「设置 → 高级 → 距离校准向导」。
+3. **实现说明**：采样结果取中位数抑制离群值；两点标定按「在身边中位数 - 3 dBm / 已离开中位数 + 3 dBm」生成阈值，并保证两者至少相差 8 dBm（不足时优先下压「已离开」阈值以降低误锁率）。入口在「设置 → 校准 → 距离校准向导」。
 
 ### FR-16 误锁反馈与自动调参（P1，M3）
 
 1. 每次自动锁定记一次样本；用户在菜单栏点击「刚才这次是误锁」记一次误锁（锁定后 10 分钟内可反馈）。
 2. 误锁率 > 20% 且样本 ≥ 3 时自动放宽：先把「已离开」阈值下调 2 dBm（下限 -95），到下限后把等待时间 +2 秒（上限 30 秒）。
 3. 连续 20 次自动锁定无误锁时缓慢收紧：先缩短等待时间，再向默认阈值移动 1 dBm；收紧后不会比默认行为更激进，也不会与「在身边」阈值贴太近（至少保留 5 dBm）。
-4. 「高级」页展示自动锁定次数 / 误锁次数 / 误锁率，并提供「恢复默认阈值」。
+4. 「诊断」页展示自动锁定次数 / 误锁次数 / 误锁率，并提供「恢复默认阈值」。
 5. **实现说明**：调参逻辑为纯函数 `AutoTuner`，有单元测试；样本计数持久化在 `UserDefaults`。
 
 ### FR-17 调试用 RSSI 模拟（P2，M3）
@@ -365,26 +368,17 @@ stateDiagram-v2
 
 ## 10. 界面需求
 
-### 10.1 菜单栏面板（宽 320pt）
+### 10.1 菜单栏面板（宽 340pt）
 
-```
-┌──────────────────────────────────────┐
-│ 🔓  手表在身边                        │
-│     Apple Watch Ultra                │
-│ ──────────────────────────────────── │
-│ 信号强度                     -52 dBm │
-│ 估算距离                      0.8 米 │
-│ 最后更新                      2 秒前 │
-│ ──────────────────────────────────── │
-│ [✓] 启用自动锁定                     │
-│ [ 暂停… ]        [ 立即锁定 ]        │
-│ [ 设置… ⌘, ]     [ 退出 WatchLock ]  │
-└──────────────────────────────────────┘
-```
+自上而下：状态卡（图标 / 状态 / 绑定设备名 / 信号条 / dBm / 估算距离 / 最后更新）→ 启用开关 →
+（按需出现）扫描告警行、暂停状态条、误锁反馈条 → 三个等宽主操作「立即锁定 / 暂停 / 设置…（⌘,）」→
+分隔线 → 「更多」菜单（调试子菜单、退出）。常驻只保留 3 个主操作，退出与调试收进「更多」以降低误触。
+三种场景的设计稿见 `docs/ui-design/01-menubar.png`。
 
-### 10.2 设置窗口（560 × 460）
+### 10.2 设置窗口（默认 760 × 660，最小 680 × 620）
 
-五个页签：通用 / 设备 / 解锁 / 高级 / 关于（见 FR-08 表）。
+左侧自绘侧栏（顶部品牌行 + 六个页面）：通用 / 设备 / 解锁 / 校准 / 诊断 / 关于（见 FR-08 表）。
+窗口无原生标题栏条，红绿灯悬浮在内容之上，规范见 `.codebuddy/rules/watchlock-ui.md` §7。
 
 ### 10.3 视觉与交互
 
@@ -411,13 +405,14 @@ stateDiagram-v2
 | 编号 | 决策 | 备选方案 | 理由 |
 | --- | --- | --- | --- |
 | ADR-01 | 用 BLE RSSI 做距离判定 | UWB / Wi-Fi RTT / 摄像头人感 | 仅 Apple Watch Series 6+ 支持 UWB 且不向第三方开放；RSSI 是唯一通用可行方案 |
-| ADR-02 | 锁屏用 `CGSession -suspend` | 私有 `SACLockScreenImmediate` | 前者为公开可执行程序，App Store 风险更低；后者为私有 API |
+| ADR-02 | 锁屏默认模拟 ⌃⌘Q，私有 `SACLockScreenImmediate` 作为**可选**方式 | 默认用 `CGSession -suspend`（macOS 26 已移除） | ⌃⌘Q 为公开手段、可预期；私有接口免辅助功能授权，但接口未公开、可能随系统升级失效，故仅作为用户主动选择项，不在默认值里引入风险。依据：符号名与「系统内部用于锁定屏幕」的用法见 Stack Overflow 一手回答（`SACLockScreenImmediate` in `login.framework`）；是否真能锁屏待真机验证 |
 | ADR-03 | 解锁默认不托管密码 | 托管密码为默认 | 安全优先；Apple 未开放第三方解锁 API，托管密码存在泄漏与失效风险 |
 | ADR-04 | SwiftPM 工程 + 脚本打包 .app | Xcode .xcodeproj | 便于命令行构建与 CI；GUI 相关资源由 `Scripts/build-app.sh` 注入 Info.plist 与 entitlements |
 | ADR-05 | SwiftUI `MenuBarExtra` | NSStatusItem 手写 | 代码量小、macOS 14+ 原生支持 `.window` 样式面板 |
 | ADR-06 | 状态判定用双阈值 + 宽限 | 单一阈值 | 抑制临界抖动，降低误锁率 |
 | ADR-07 | 本期不实现 watchOS 配套 App | 手表端主动广播 / iPhone 中转 | 后台广播持续性无保证、签名与维护成本高；现有多证据识别 + 校准 + 误锁调参已覆盖主要问题。评估全文见 `docs/watchos-companion-evaluation.md` |
 | ADR-08 | 定位为「离开即锁屏」，不追求复刻 Apple 官方识别可靠性 | 自己实现手表在场判定 + 解锁 | Apple 官方「用 Apple Watch 解锁」依赖 iCloud 身份 + 双重认证 + Continuity，第三方无对应 API；官方方案只覆盖解锁、不覆盖离开锁屏，本项目补的正是这一段。依据见 `docs/anti-false-lock-research.md` |
+| ADR-09 | 仅通过 GitHub Release 分发，GitHub Actions 构建通用 DMG；CI 默认 ad-hoc 签名 | App Store；先等 Developer ID 公证再发布 | 用户指定 GitHub 流水线打包与 Release 渠道；DMG 打包不依赖 Apple 证书。明示未公证、Gatekeeper 与升级后重新授权风险，签名 / 公证保留为后续增强 |
 
 ---
 
@@ -427,20 +422,21 @@ stateDiagram-v2
 | --- | --- | --- | --- |
 | M1 | v0.1.0 | FR-01/02/03/04/06/07/08/11 骨架实现 + 构建脚本 | 可运行的 .app |
 | M2 | v0.2.0 | FR-05/09/10/12/13，补 `ProximityEngine` 单元测试 | 完整主流程可用 |
-| M3 | v0.3.0 | FR-14 校准向导、FR-16 误锁反馈与自动调参、FR-17 调试模拟、评估 watchOS 配套 App | 精度与体验优化（**已完成**，当前阶段） |
-| M4 | v1.0.0 | FR-15 本地化、Developer ID 签名与公证、DMG、帮助手册 | 对外发布 |
+| M3 | v0.3.0 | FR-14 校准向导、FR-16 误锁反馈与自动调参、FR-17 调试模拟、评估 watchOS 配套 App | 精度与体验优化（**已完成**） |
+| M3.5 | v0.4.0 | UI 重构与设计规范、品牌 logo 与图标、菜单栏五态图标、产品化 README、开源许可 | 对外发布前的体验与品牌打磨（**已完成**，当前阶段） |
+| M4 | v1.0.0 | GitHub Actions 通用 DMG 打包与 GitHub Release（流水线已实现）；FR-15 本地化、帮助手册；Developer ID 签名 / 公证为可选增强 | GitHub Release 对外发布（不发布 App Store） |
 
 ### 13.1 当前代码与需求的对照
 
 | 需求 | 状态 | 位置 |
 | --- | --- | --- |
 | FR-02 扫描与绑定 | 已实现（多证据识别 + Continuity 广播解析 + 地址轮换时用广播类型指纹校验续接） | `Core/Bluetooth/WatchScanner.swift`、`Core/Bluetooth/AppleAdvertisement.swift` |
-| 广播抓包（真机固化识别规则） | 已实现（「高级」页展示厂商数据并支持复制） | `UI/SettingsView.swift` |
+| 广播抓包（真机固化识别规则） | 已实现（「诊断」页展示厂商数据并支持复制） | `UI/Settings/DiagnosticsPage.swift` |
 | FR-03 距离判定 | 已实现 | `Core/Proximity/ProximityEngine.swift` |
-| FR-04 自动锁定 | 已实现 | `Core/Lock/ScreenLocker.swift`、`App/AppSession.swift` |
+| FR-04 自动锁定 | 已实现（默认 ⌃⌘Q；可选私有 `SACLockScreenImmediate` 免授权，运行时解析 + 降级通知） | `Core/Lock/ScreenLocker.swift`、`Core/Lock/SystemLockScreen.swift`、`App/AppSession.swift` |
 | FR-05 唤醒解锁 | 已实现（策略骨架，需真机调优） | `Core/Unlock/UnlockService.swift` |
 | FR-06 暂停 | 已实现 | `Storage/SettingsStore.swift` |
-| FR-07/08 UI | 已实现 | `UI/MenuBarView.swift`、`UI/SettingsView.swift` |
+| FR-07/08 UI | 已实现（状态卡与菜单栏同源五态图标；通用页「锁定方式」含私有接口可用性提示） | `UI/MenuBarView.swift`、`UI/SettingsView.swift`、`UI/Design/StatusIcon.swift` |
 | FR-11 日志 | 已实现 | `Support/DiagnosticsLog.swift` |
 | FR-09 通知 | 已实现（含授权请求与「同一原因 5 分钟 1 条」限流） | `Support/NotificationPresenter.swift`、`Support/NotificationThrottle.swift` |
 | FR-10 开机启动 | 已实现（设置项与系统登录项状态同步） | `Core/System/LaunchManager.swift`、`UI/SettingsView.swift` |
@@ -448,16 +444,21 @@ stateDiagram-v2
 | FR-13 睡眠联动 | 已实现（睡眠停止扫描、唤醒恢复扫描并重置状态机） | `Core/System/SleepWakeMonitor.swift`、`App/AppSession.swift` |
 | FR-12 低耗电 | 已实现（暂停/关闭时改为间歇扫描、候选 60 秒清理、前置条件探测结果缓存） | `Core/Bluetooth/WatchScanner.swift`、`App/AppSession.swift` |
 | FR-14 距离校准向导 | 已实现（1 米标定 + 两点标定生成阈值，采样 10 秒） | `Core/Proximity/DistanceCalibrator.swift`、`UI/CalibrationWizard.swift` |
-| FR-16 误锁反馈与自动调参 | 已实现（菜单栏反馈入口 + `AutoTuner` 纯逻辑 + 高级页统计与恢复默认） | `Core/Proximity/AutoTuner.swift`、`App/AppSession.swift`、`UI/MenuBarView.swift` |
+| FR-16 误锁反馈与自动调参 | 已实现（菜单栏反馈入口 + `AutoTuner` 纯逻辑 + 诊断页统计与恢复默认） | `Core/Proximity/AutoTuner.swift`、`App/AppSession.swift`、`UI/MenuBarView.swift` |
 | FR-17 调试用 RSSI 模拟 | 已实现（调试子菜单 + `WATCHLOCK_FAKE_RSSI` 环境变量，默认关闭） | `App/AppSession.swift`、`UI/MenuBarView.swift` |
 | watchOS 配套 App | 已评估，结论「本期不实现」（保留为兜底方案，触发条件见评估文档） | `docs/watchos-companion-evaluation.md` |
-| 单元测试 | 已实现（78 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析） | `Tests/WatchLockTests` |
+| UI 重构与设计规范 | 已实现（设计 token 与组件库、自绘侧栏设置窗口、无标题栏窗口、同轴阈值带、引导与校准向导重做） | `UI/`、`docs/ui-design.md`、`.codebuddy/rules/watchlock-ui.md` |
+| 品牌标识与状态图标 | 已实现（logo 提炼「环形锁体 + 锁梁」，应用图标 `.icns` + 代码绘制的模板图；**菜单栏与面板状态卡同源**，经 `StatusIcon`） | `UI/Design/BrandLogo.swift`、`UI/Design/MenuBarIcon.swift`、`UI/Design/StatusIcon.swift`、`docs/logo/` |
+| GitHub Release 发布链路 | 流水线已实现（手动选择 patch / minor / major 自动递增版本、打包后创建标签并在同一次运行发布；保留已有标签发布与 build-only 仅打包；重跑复用本次标签；默认 ad-hoc，首次云端执行待验证） | `.github/workflows/release.yml`、`Scripts/next-version.py`、`Scripts/build-app.sh`、`Scripts/build-dmg.sh` |
+| 发布版本测试 | 已实现（15 例，覆盖递增、数值排序、预发布过滤、初始版本及同一流水线重跑保护） | `Tests/ReleaseTests/test_next_version.py` |
+| 开源许可 | PolyForm Noncommercial 1.0.0（禁止商用） | `LICENSE` |
+| 单元测试 | 已实现（117 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为） | `Tests/WatchLockTests` |
 
 ---
 
 ## 14. 测试与验收
 
-### 14.1 单元测试（M2 已补充：`Tests/WatchLockTests`，`swift test` 共 78 例）
+### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 117 例）
 
 | 用例 | 输入 | 期望 |
 | --- | --- | --- |
@@ -503,10 +504,11 @@ stateDiagram-v2
 | R-01 | Apple 未开放第三方自动解锁 API，解锁体验依赖系统功能 | 高 | 默认策略改为「唤醒 + 引导系统设置」；在 UI 明确说明 |
 | R-02 | Apple Watch 广播内容与可见性随 watchOS 变化；且以随机地址 + IRK 广播，第三方拿不到 IRK | 高 | 多证据识别 + 手动绑定 + 校准向导 + 误锁自动调参 + 地址轮换自动续接绑定；watchOS 配套 App 已评估为兜底方案（本期不实现，触发条件见 `docs/watchos-companion-evaluation.md`）；调研依据见 `docs/anti-false-lock-research.md` |
 | R-03 | RSSI 受遮挡/人体影响，误锁或漏锁 | 中 | 平滑 + 双阈值 + 宽限 + 校准向导 + 暂停 |
-| R-04 | `CGSession -suspend` 在后续 macOS 版本失效 | 中 | 锁屏方式可配置，失效时可切 `pmset` 或自定义命令 |
+| R-04 | 锁屏手段失效：`CGSession -suspend` 已在 macOS 26 移除；默认 ⌃⌘Q 依赖辅助功能授权 | 中 | 锁屏方式可配置；缺权限时预检拦截 + 通知；可切 `pmset` 或自定义命令 |
+| R-08 | 私有 `SACLockScreenImmediate` 未公开，符号存在不代表调用效果不变，系统升级可能失效或被改名 | 中 | 运行时 `dlopen`/`dlsym` 解析，失败即降级并通知；仅作为用户主动选择项，默认仍为 ⌃⌘Q；设置页显示当前可用性 |
 | R-05 | 托管密码模式的安全与合规风险 | 高 | 默认关闭、二次警示、钥匙串最小权限、日志脱敏 |
 | R-06 | 沙箱 + 蓝牙权限在部分系统设置组合下不生效 | 中 | 提供诊断页与权限自检入口 |
-| R-07 | 公证/签名失败导致无法分发 | 低 | M4 提前验证 Developer ID + notarytool 流程 |
+| R-07 | 当前 ad-hoc Release 未做 Apple 公证，Gatekeeper 可能阻止首次运行；升级后 TCC 授权可能失效 | 中 | Release 与 README 明示来源校验、系统允许打开入口及重新授权限制；受管理设备可能禁止运行。Developer ID 签名 / 公证是后续增强，不阻塞 GitHub DMG 发布 |
 
 ---
 
@@ -539,3 +541,7 @@ stateDiagram-v2
 | v1.5 | 2026-10-15 | 补做调研（Apple 官方文档 / 开发者论坛一手报告 / Continuity 逆向研究 / 同类产品），修正 v1.4 中不准确的机制表述，新增 ADR-08 明确产品定位，调研依据见 `docs/anti-false-lock-research.md` |
 | v1.6 | 2026-10-15 | 选定「纯 Mac 单端 + 认广播类型」路线：新增 `AppleAdvertisement` 解析 Continuity 广播结构、绑定时记录广播类型指纹并在地址轮换时校验、高级页新增广播抓包入口；单测累计 78 例 |
 | v1.7 | 2026-10-15 | 本机真机抓包（12 秒 / 283 台设备）后修正：广播类型指纹去掉会变化的长度、RSSI=127 时按「在场」处理不再误锁、诊断日志落盘、抓包区改为直接读扫描结果；单测累计 81 例 |
+| v1.8 | 2026-10-16 | M3.5 完成：UI 重构（设置窗口改自绘侧栏并把「高级」拆为「校准 / 诊断」、无标题栏窗口）、品牌 logo 与菜单栏五态图标、README 产品化并拆出 `DEVELOPMENT.md`、采用 PolyForm Noncommercial 许可、签名改为稳定证书；文档与实现对齐（沙箱默认关闭、页签、面板宽度、单测累计 108 例）；将 UI 重构从原 README 中的「M4」更名为 M3.5，M4 保持为对外发布 |
+| v1.9 | 2026-10-16 | 三项决策落地：①状态卡与菜单栏统一为同源五态图标（新增 `StatusIcon`，移除 `ProximityStatus.symbolName`，设计稿 `01-menubar.html` 同步）；②新增可选私有 API 锁屏 `SACLockScreenImmediate`（`SystemLockScreen` 运行时解析、免辅助功能、失效降级并通知；**默认仍为 ⌃⌘Q**，不影响已有配置）；③定为主渠道 **GitHub Release、暂不上 App Store**（据此保留私有 API 方案），README / DEVELOPMENT / 需求文档同步；单测累计 117 例。**未做**：真机验证锁屏效果、公证与 DMG、universal 二进制（阻塞于 Developer ID / 公证凭据与仓库地址） |
+| v1.10 | 2026-10-16 | 按用户要求实现 GitHub Actions DMG 打包与仅 GitHub Release 分发（ADR-09）：标签触发单测、arm64 + x86_64 通用应用、DMG / SHA-256 校验、草稿上传后公开 Release；手动触发仅上传 artifact；版本注入打包产物而不改源码 plist，安装包携带许可。CI 默认 ad-hoc，无需 Apple 证书或公证凭据，纠正 v1.9 将 DMG 与 universal 构建视为凭据阻塞的描述。本地通用 DMG、117 例测试与 actionlint / ShellCheck 校验通过；首次 GitHub 云端发布待验证，未执行提交 / 推送 / 发布 |
+| v1.11 | 2026-10-16 | 新增手动 patch / minor / major 自动版本发布：从最高稳定标签递增，无标签时读取源码 plist；仅默认分支允许自动发布，默认 build-only 保留仅打包行为。测试与 DMG 成功后创建指向构建提交的注释标签，并在同一次运行发布，无需额外 PAT；标签带 run_id，重跑复用且拒绝覆盖冲突标签，artifact 按运行尝试独立命名。新增 15 例 Python 发布逻辑测试，Swift 保持 117 例；actionlint 校验通过，未创建真实标签或触发云端发布 |

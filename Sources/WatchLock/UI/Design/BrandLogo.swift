@@ -2,9 +2,8 @@ import SwiftUI
 
 /// 品牌标识。
 ///
-/// 图标资源由 `Scripts/generate-icons.sh` 从 `docs/logo/` 下的主图生成：
-/// - `Resources/AppIcon.icns` —— 应用图标（Dock / Finder）；
-/// - `Resources/MenuBarTemplate.png` —— 菜单栏模板图标（黑色 + alpha，系统自动适配深色模式）。
+/// 应用图标 `Resources/AppIcon.icns`（Dock / Finder / 关于页）由
+/// `Scripts/generate-icons.sh` 从 `docs/logo/AppIcon-master.png` 生成。
 ///
 /// 菜单栏里用的是**状态图标**（见 `MenuBarIcon`，由 logo 的「环形锁体 + 锁梁」提炼并用代码绘制），
 /// 因为那里要一眼看出状态；品牌 logo 只用于关于页等「身份展示」场景。

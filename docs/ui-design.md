@@ -147,7 +147,8 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 > 设置页与引导窗均为自建 `NSWindow`、同一套配置（`SettingsWindow` / `OnboardingWindow`，见 `.codebuddy/rules/watchlock-ui.md` §7）。
 >
 > **品牌标识的应用位置**：设置窗口侧栏顶部「图标 + WatchLock」品牌行（`BrandLockup`）、
-> 引导窗 hero 的品牌图标（`BrandLogoView`）、关于页大图标；**菜单栏保持状态图标**不用品牌 logo（图标规范见 `docs/ui-design/08-menubar-icons.html`）。
+> 引导窗 hero 的品牌图标（`BrandLogoView`）、关于页大图标；**状态显示位置（菜单栏 + 面板状态卡）用同一套五态状态图标**，
+> 不用品牌 logo，也不再另选 SF Symbol（图标规范见 `docs/ui-design/08-menubar-icons.html`，状态卡封装见 `StatusIcon`）。
 > 应用图标本身由 `Resources/AppIcon.icns` 提供（Dock / ⌘⇥ / 系统权限列表），见 `docs/logo/` 与 `DEVELOPMENT.md`。
 
 以下是线框稿与逐项说明。
@@ -181,7 +182,7 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 ```
 
 要点
-- 顶部 `StatusCard`：图标（18pt，语义色）+ 状态标题 + 设备名 + 最后更新；第二行 `SignalMeter`(4 格) + RSSI + 估算距离。
+- 顶部 `StatusCard`：状态图标（20pt，语义色，与菜单栏同源的 `MenuBarIcon`；「已关闭」态图标自带 42% 淡化，故用主色承载避免过淡）+ 状态标题 + 设备名 + 最后更新；第二行 `SignalMeter`(4 格) + RSSI + 估算距离。
 - 主操作收敛为 3 个：`立即锁定` / `暂停…` / `设置…`。`暂停…` 为 Menu（15 分钟 / 1 小时 / 4 小时 / 直到明天）。
 - 暂停态用**整行状态条**替换暂停按钮，显示剩余时间 + 「恢复」。
 - 误锁反馈：仅在 `falseLockFeedbackAvailable` 时出现，作为上下文行（不占位时不渲染）。
@@ -208,6 +209,7 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 │        │  ☑ 收不到信号时按「已离开」锁定                      │
 │        │                                                   │
 │        │  锁定方式   [ 模拟 ⌃⌘Q        ▾ ]                  │
+│        │  ⚠ 已找到系统锁屏接口（未公开，升级后可能失效）        │  仅选「系统接口」时出现
 │        │  菜单栏图标旁显示状态文字（默认关）  ○━━━━━━━         │
 │        │  锁定 / 异常时发送通知           ●━━━━━━━            │
 │        │  开机启动                      ●━━━━━━━            │
@@ -353,7 +355,8 @@ HIG《Privacy → Requesting permission》（蓝牙属于「应用要能运行�
 | 组件 | 用途 | 复用点 |
 | --- | --- | --- |
 | `WLTheme` | spacing / radius / 语义色 / 字体 token | 全局 |
-| `StatusCard` | 状态卡（图标+标题+副标题+指标） | 菜单栏 |
+| `StatusCard` | 状态卡（状态图标+标题+副标题+指标） | 菜单栏 |
+| `StatusIcon` | 五态状态图标（复用 `MenuBarIcon`，20pt + 语义色） | 菜单栏状态卡 |
 | `SignalMeter` | 4 格信号条（按阈值映射） | 菜单栏、设备列表、引导 |
 | `MetricRow` | 标签 + 数值行（统一 `monospacedDigit`） | 菜单栏、诊断 |
 | `WLButton`（3 档样式） | 主 / 次 / 危险按钮 | 全局 |

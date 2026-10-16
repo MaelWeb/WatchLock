@@ -26,7 +26,8 @@ alwaysApply: false
 
 | 组件 | 用途 |
 | --- | --- |
-| `StatusCard` | 状态卡（图标 + 标题 + 副标题 + 指标） |
+| `StatusCard` | 状态卡（状态图标 + 标题 + 副标题 + 指标） |
+| `StatusIcon` | 五态状态图标（复用 `MenuBarIcon`，20pt + 语义色）；**面板里不要另选 SF Symbol** |
 | `SignalMeter` | 4 格信号条，**按当前阈值动态分级** |
 | `MetricRow` | 标签 + 数值（已带 `monospacedDigit`） |
 | `WLButton` | `.primary` / `.secondary` / `.danger` 三档样式 |

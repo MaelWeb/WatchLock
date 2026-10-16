@@ -488,7 +488,7 @@ final class AppSession: ObservableObject {
             if settings.notificationsEnabled {
                 NotificationPresenter.shared.notify(
                     title: "无法锁定 Mac",
-                    body: ScreenLocker.accessibilityNotificationBody,
+                    body: locker.permissionIssueNotificationBody,
                     reason: .lockBlocked
                 )
             }

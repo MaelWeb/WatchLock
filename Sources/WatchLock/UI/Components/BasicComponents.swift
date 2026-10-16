@@ -2,22 +2,24 @@ import SwiftUI
 
 // MARK: - 状态卡
 
-/// 状态卡：图标 + 状态标题 + 副标题，底部由调用方追加指标行。
+/// 状态卡：状态图标 + 状态标题 + 副标题，底部由调用方追加指标行。
+///
+/// 图标与菜单栏同源（`StatusIcon` → `MenuBarIcon`），不再单独指定 SF Symbol。
 struct StatusCard<Footer: View>: View {
-    let symbol: String
+    let status: ProximityStatus
     let title: String
     let subtitle: String
     let tint: Color
     @ViewBuilder var footer: Footer
 
     init(
-        symbol: String,
+        status: ProximityStatus,
         title: String,
         subtitle: String,
         tint: Color,
         @ViewBuilder footer: () -> Footer
     ) {
-        self.symbol = symbol
+        self.status = status
         self.title = title
         self.subtitle = subtitle
         self.tint = tint
@@ -27,11 +29,9 @@ struct StatusCard<Footer: View>: View {
     var body: some View {
         // 标题区与指标区之间 12，指标区内部行距 8（设计稿 01-menubar）。
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            HStack(alignment: .firstTextBaseline, spacing: WLSpacing.sm) {
-                Image(systemName: symbol)
-                    .font(.system(size: 18))
-                    .foregroundStyle(tint)
-                    .accessibilityHidden(true)
+            // 位图图标没有文字基线，改为顶部对齐（图标高度与标题行高相当）。
+            HStack(alignment: .top, spacing: WLSpacing.sm) {
+                StatusIcon(status: status, tint: tint)
                 VStack(alignment: .leading, spacing: WLSpacing.xs) {
                     Text(title).font(WLFont.statusTitle)
                     Text(subtitle).font(WLFont.caption).foregroundStyle(.secondary)

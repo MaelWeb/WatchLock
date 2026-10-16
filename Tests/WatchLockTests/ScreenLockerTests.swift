@@ -4,9 +4,18 @@ import XCTest
 /// 锁屏命令拼装与 AppleScript 转义（对应需求 §14.1）。
 final class ScreenLockerTests: XCTestCase {
     func testPresetMethodsHaveCommands() {
-        for method in LockMethod.allCases where method != .customCommand {
+        // 自定义命令由用户填写；系统接口是进程内调用，都没有预置命令。
+        for method in LockMethod.allCases where method.usesShellCommand && method != .customCommand {
             XCTAssertNotNil(method.command, "\(method.title) 缺少命令")
             XCTAssertFalse(method.command?.isEmpty ?? true)
+        }
+    }
+
+    func testOnlySystemLockScreenSkipsShell() {
+        XCTAssertFalse(LockMethod.systemLockScreen.usesShellCommand)
+        XCTAssertNil(LockMethod.systemLockScreen.command)
+        for method in LockMethod.allCases where method != .systemLockScreen {
+            XCTAssertTrue(method.usesShellCommand, "\(method.title) 应通过 shell 执行")
         }
     }
 
@@ -77,6 +86,98 @@ final class ScreenLockerTests: XCTestCase {
         // 缺权限时直接返回 false，不会真的去执行 osascript。
         XCTAssertFalse(locker.lock())
         XCTAssertTrue(checked)
+    }
+
+    // MARK: - 系统私有锁屏接口
+
+    func testSystemLockScreenDoesNotRequireAccessibility() {
+        XCTAssertFalse(LockMethod.systemLockScreen.requiresAccessibility)
+        // 即便辅助功能未授权，也不应被拦截，且不应触发辅助功能检查（避免弹授权框）。
+        var accessibilityChecked = false
+        let locker = ScreenLocker(
+            method: .systemLockScreen,
+            customCommand: "",
+            accessibilityCheck: {
+                accessibilityChecked = true
+                return false
+            },
+            systemLockCheck: { true }
+        )
+        XCTAssertNil(locker.permissionIssue())
+        XCTAssertFalse(accessibilityChecked)
+    }
+
+    func testSystemLockScreenReportsIssueWhenAPIUnavailable() {
+        let locker = ScreenLocker(method: .systemLockScreen, customCommand: "", systemLockCheck: { false })
+        XCTAssertEqual(locker.permissionIssue(), ScreenLocker.systemAPIGuidance)
+    }
+
+    func testSystemLockScreenCommandIsAlwaysValid() {
+        let locker = ScreenLocker(method: .systemLockScreen, customCommand: "")
+        XCTAssertTrue(locker.isCommandValid)
+    }
+
+    func testSystemLockScreenInvokesInjectedLock() {
+        var calls = 0
+        let locker = ScreenLocker(
+            method: .systemLockScreen,
+            customCommand: "",
+            systemLockCheck: { true },
+            systemLock: {
+                calls += 1
+                return true
+            }
+        )
+        XCTAssertTrue(locker.lock())
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testSystemLockScreenFailureIsReported() {
+        var calls = 0
+        let locker = ScreenLocker(
+            method: .systemLockScreen,
+            customCommand: "",
+            systemLockCheck: { true },
+            systemLock: {
+                calls += 1
+                return false
+            }
+        )
+        XCTAssertFalse(locker.lock())
+        XCTAssertEqual(calls, 1)
+    }
+
+    func testSystemLockScreenSkipsInvocationWhenUnavailable() {
+        var calls = 0
+        let locker = ScreenLocker(
+            method: .systemLockScreen,
+            customCommand: "",
+            systemLockCheck: { false },
+            systemLock: {
+                calls += 1
+                return true
+            }
+        )
+        // 预检不通过时不应去调用私有接口。
+        XCTAssertFalse(locker.lock())
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testPermissionIssueNotificationBodyMatchesMethod() {
+        XCTAssertEqual(
+            ScreenLocker(method: .systemLockScreen, customCommand: "").permissionIssueNotificationBody,
+            ScreenLocker.systemAPINotificationBody
+        )
+        XCTAssertEqual(
+            ScreenLocker(method: .controlCommandQ, customCommand: "").permissionIssueNotificationBody,
+            ScreenLocker.accessibilityNotificationBody
+        )
+    }
+
+    func testSystemLockScreenSymbolResolutionDoesNotLock() {
+        // 只解析符号，不调用；用于确认 dlopen/dlsym 路径本身不会崩溃。
+        _ = SystemLockScreen.isAvailable
+        _ = SystemLockScreen.resolve()
     }
 
     func testDetectsAccessibilityDeniedOutput() {

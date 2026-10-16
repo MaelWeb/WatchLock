@@ -194,6 +194,9 @@ private struct GeneralPage: View {
                 Text(settings.lockMethod.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if settings.lockMethod == .systemLockScreen {
+                    systemLockStatusLabel
+                }
                 if settings.lockMethod == .customCommand {
                     TextField("自定义命令", text: $settings.customLockCommand)
                 }
@@ -219,6 +222,19 @@ private struct GeneralPage: View {
         .frame(minWidth: 460)
         // FR-10：设置项与系统登录项的实际状态保持一致。
         .onAppear { settings.launchAtLogin = LaunchManager.isRegistered }
+    }
+
+    /// 私有接口是否可用取决于当前系统版本，这里直接展示探测结果（只解析符号，不会锁屏）。
+    private var systemLockStatusLabel: some View {
+        let available = SystemLockScreen.isAvailable
+        return Label(
+            available
+                ? "已找到系统锁屏接口（仅符号检测，不代表已验证锁屏效果；系统升级后可能失效）"
+                : "当前系统上找不到该接口，请改用其他方式",
+            systemImage: available ? "exclamationmark.triangle" : "xmark.octagon"
+        )
+        .font(WLFont.caption)
+        .foregroundStyle(available ? WLColor.neutral : WLColor.danger)
     }
 
     private var thresholdHint: String {

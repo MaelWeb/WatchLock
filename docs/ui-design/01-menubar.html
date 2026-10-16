@@ -10,25 +10,29 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1"/></symbol>
 <symbol id="lock" viewBox="0 0 16 16"><rect x="3.4" y="7" width="9.2" height="7" rx="2"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.4 0V7"/></symbol>
-<symbol id="lockopen" viewBox="0 0 16 16"><rect x="3.4" y="7" width="9.2" height="7" rx="2"/><path d="M5.8 7V5.4a2.2 2.2 0 0 1 4.2-.8"/></symbol>
-<symbol id="watch" viewBox="0 0 16 16"><rect x="4.6" y="4" width="6.8" height="8" rx="2.4"/><path d="M6.2 4V1.8h3.6V4M6.2 12v2.2h3.6V12"/></symbol>
 <symbol id="pause" viewBox="0 0 16 16"><path d="M6 3.6v8.8M10 3.6v8.8"/></symbol>
 <symbol id="warn" viewBox="0 0 16 16"><path d="M8 2.6 14.4 13.4H1.6z"/><path d="M8 6.4v3.2M8 11.2v.5"/></symbol>
 <symbol id="hand" viewBox="0 0 16 16"><path d="M5.6 7.6V4.2a1.1 1.1 0 0 1 2.2 0v2.6M7.8 6.8V3.4a1.1 1.1 0 0 1 2.2 0v3.4M10 6.6V4.8a1.1 1.1 0 0 1 2.2 0v5.2c0 2.2-1.6 3.8-3.8 3.8H8.4a3.6 3.6 0 0 1-3.6-3.6V8.6"/></symbol>
 <symbol id="wave" viewBox="0 0 16 16"><path d="M2 9c1.4 0 1.4-4 2.8-4s1.4 8 2.8 8 1.4-8 2.8-8 1.4 4 2.8 4"/></symbol>
+<!-- 状态图标：与 08-menubar-icons.html / 菜单栏同源（18×18，线宽 1.8） -->
+<symbol id="s-near" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/></symbol>
+<symbol id="s-far" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/><circle cx="9" cy="11.2" r="1.4" fill="currentColor" stroke="none"/></symbol>
+<symbol id="s-unknown" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/><circle cx="6.2" cy="11.2" r="0.95" fill="currentColor" stroke="none"/><circle cx="9" cy="11.2" r="0.95" fill="currentColor" stroke="none"/><circle cx="11.8" cy="11.2" r="0.95" fill="currentColor" stroke="none"/></symbol>
+<symbol id="s-paused" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/><path d="M7.7 9V13.4M10.3 9V13.4" stroke-width="1.7"/></symbol>
+<symbol id="s-disabled" viewBox="0 0 18 18"><g opacity=".42"><circle cx="9" cy="11.2" r="5.1"/><path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/><path d="M6.9 11.2H11.1" stroke-width="1.7"/></g></symbol>
 </defs></svg>
 
 <!-- 场景 1：常态 -->
 <div class="col">
   <div class="mb-scene">
-    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#34c759"><use href="#lockopen"/></svg>WatchLock</span></div>
+    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#34c759"><use href="#s-near"/></svg>WatchLock</span></div>
     <div style="padding:10px">
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
           <div class="card">
             <div class="row top" style="gap:8px">
-              <svg class="ic lg" style="color:#34c759"><use href="#lockopen"/></svg>
+              <svg class="ic state" style="color:#34c759"><use href="#s-near"/></svg>
               <div class="stack gap4" style="flex:1">
                 <div class="h">手表在身边</div>
                 <div class="sub">Apple Watch</div>
@@ -68,14 +72,14 @@
 <!-- 场景 2：暂停中 -->
 <div class="col">
   <div class="mb-scene">
-    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#8e8e93"><use href="#pause"/></svg>WatchLock</span></div>
+    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#8e8e93"><use href="#s-paused"/></svg>WatchLock</span></div>
     <div style="padding:10px">
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
           <div class="card">
             <div class="row top" style="gap:8px">
-              <svg class="ic lg" style="color:#8e8e93"><use href="#lockopen"/></svg>
+              <svg class="ic state" style="color:#8e8e93"><use href="#s-paused"/></svg>
               <div class="stack gap4" style="flex:1">
                 <div class="h">手表在身边</div>
                 <div class="sub">Apple Watch</div>
@@ -122,14 +126,14 @@
 <!-- 场景 3：刚锁屏 / 误锁反馈 -->
 <div class="col">
   <div class="mb-scene">
-    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#ff9f0a"><use href="#lock"/></svg>WatchLock</span></div>
+    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#ff9f0a"><use href="#s-far"/></svg>WatchLock</span></div>
     <div style="padding:10px">
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
           <div class="card">
             <div class="row top" style="gap:8px">
-              <svg class="ic lg" style="color:#ff9f0a"><use href="#lock"/></svg>
+              <svg class="ic state" style="color:#ff9f0a"><use href="#s-far"/></svg>
               <div class="stack gap4" style="flex:1">
                 <div class="h">手表已离开</div>
                 <div class="sub">Apple Watch</div>

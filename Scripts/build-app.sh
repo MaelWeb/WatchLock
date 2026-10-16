@@ -2,26 +2,30 @@
 # 构建并打包 WatchLock.app
 #
 # 用法：
-#   ./Scripts/build-app.sh                     # release 构建 + 无沙箱（默认，本地真机测试）
+#   ./Scripts/build-app.sh                     # release 构建 + 无沙箱（默认）
 #   ./Scripts/build-app.sh --debug             # debug 构建
-#   ./Scripts/build-app.sh --sandbox           # 打开 App 沙箱（上架/沙箱兼容性对照）
+#   ./Scripts/build-app.sh --universal         # arm64 + x86_64 通用二进制
+#   ./Scripts/build-app.sh --sandbox           # 仅用于沙箱兼容性对照
 #   ./Scripts/build-app.sh --no-sandbox        # 关闭 App 沙箱（显式）
 #   SIGN_IDENTITY="Apple Development: ..." ./Scripts/build-app.sh
+#   VERSION=0.4.0 BUILD_NUMBER=42 SIGN_IDENTITY=- ./Scripts/build-app.sh --universal
 #
 # 签名：未指定时自动选本机的 Developer ID Application / Apple Development 证书，
 # 都没有才退回 ad-hoc（ad-hoc 每次打包授权都会失效，见下方 detect_identity 注释）。
 #
 # 为什么默认无沙箱：锁屏依赖外部命令与 Apple Events（osascript ⌃⌘Q、pmset），
-# 沙箱下 System Events 会以 -600「应用程序没有运行」失败，本机真机测试需要关掉。
+# 沙箱下 System Events 会以 -600「应用程序没有运行」失败，GitHub 分发默认关闭。
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_CONFIG="release"
 SANDBOX_MODE="no-sandbox"
+UNIVERSAL_BUILD=false
 
 for arg in "$@"; do
   case "$arg" in
     --debug) BUILD_CONFIG="debug" ;;
+    --universal) UNIVERSAL_BUILD=true ;;
     --sandbox) SANDBOX_MODE="sandbox" ;;
     --no-sandbox) SANDBOX_MODE="no-sandbox" ;;
     *)
@@ -32,8 +36,22 @@ for arg in "$@"; do
 done
 
 APP_NAME="WatchLock"
-BUILD_DIR="$ROOT_DIR/.build/${BUILD_CONFIG}"
 APP_DIR="$ROOT_DIR/dist/$APP_NAME.app"
+INFO_PLIST="$ROOT_DIR/Resources/Info.plist"
+APP_VERSION="${VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")}"
+APP_BUILD_NUMBER="${BUILD_NUMBER:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")}"
+if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "VERSION 必须为 major.minor.patch：$APP_VERSION" >&2
+  exit 2
+fi
+if [[ ! "$APP_BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+  echo "BUILD_NUMBER 必须为正整数：$APP_BUILD_NUMBER" >&2
+  exit 2
+fi
+BUILD_ARGS=(--package-path "$ROOT_DIR" -c "$BUILD_CONFIG")
+if [[ "$UNIVERSAL_BUILD" == true ]]; then
+  BUILD_ARGS+=(--arch arm64 --arch x86_64)
+fi
 
 # 签名身份优先级：显式 SIGN_IDENTITY > 本机已有的稳定证书 > ad-hoc。
 #
@@ -59,9 +77,10 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 ENTITLEMENTS_SRC="$ROOT_DIR/Resources/WatchLock.entitlements"
 ENTITLEMENTS="$ENTITLEMENTS_SRC"
 
-echo "==> 构建 ($BUILD_CONFIG, $SANDBOX_MODE)"
-swift build --package-path "$ROOT_DIR" -c "$BUILD_CONFIG"
+echo "==> 构建 ($BUILD_CONFIG, $SANDBOX_MODE, $APP_VERSION)"
+swift build "${BUILD_ARGS[@]}"
 
+BUILD_DIR="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)"
 BIN="$BUILD_DIR/$APP_NAME"
 if [[ ! -f "$BIN" ]]; then
   echo "未找到产物：$BIN" >&2
@@ -70,7 +89,7 @@ fi
 
 if [[ "$SANDBOX_MODE" == "no-sandbox" ]]; then
   # 从基线 entitlements 中剥离沙箱相关键，写入临时文件供签名使用。
-  ENTITLEMENTS="$(mktemp "${TMPDIR:-/tmp}/watchlock.entitlements.XXXXXX").plist"
+  ENTITLEMENTS="$(mktemp "${TMPDIR:-/tmp}/watchlock.entitlements.XXXXXX")"
   python3 - "$ENTITLEMENTS_SRC" "$ENTITLEMENTS" <<'PY'
 import plistlib, sys
 source, destination = sys.argv[1], sys.argv[2]
@@ -89,21 +108,25 @@ echo "==> 组装 $APP_DIR"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$BIN" "$APP_DIR/Contents/MacOS/$APP_NAME"
-cp "$ROOT_DIR/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
+cp "$INFO_PLIST" "$APP_DIR/Contents/Info.plist"
+plutil -replace CFBundleShortVersionString -string "$APP_VERSION" "$APP_DIR/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$APP_BUILD_NUMBER" "$APP_DIR/Contents/Info.plist"
 cp "$ENTITLEMENTS" "$APP_DIR/Contents/Resources/WatchLock.entitlements"
+cp "$ROOT_DIR/LICENSE" "$APP_DIR/Contents/Resources/LICENSE"
 
 # 品牌图标资源（由 Scripts/generate-icons.sh 生成，已入库）
 if [[ -f "$ROOT_DIR/Resources/AppIcon.icns" ]]; then
   cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
-fi
-if [[ -f "$ROOT_DIR/Resources/MenuBarTemplate.png" ]]; then
-  cp "$ROOT_DIR/Resources/MenuBarTemplate.png" "$APP_DIR/Contents/Resources/MenuBarTemplate.png"
 fi
 
 echo "==> 签名 ($SIGN_IDENTITY)"
 codesign --force --deep --sign "$SIGN_IDENTITY" \
   --entitlements "$ENTITLEMENTS" \
   --options runtime "$APP_DIR"
+codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+if [[ "$UNIVERSAL_BUILD" == true ]]; then
+  lipo "$APP_DIR/Contents/MacOS/$APP_NAME" -verify_arch arm64 x86_64
+fi
 
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   echo "    注意：当前是 ad-hoc 签名，每次打包 cdhash 都会变，辅助功能 / 蓝牙授权会随之失效。"

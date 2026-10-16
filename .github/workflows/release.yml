@@ -1,0 +1,218 @@
+name: Build DMG and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'build-only 仅打包；patch / minor / major 自动递增并发布'
+        required: true
+        default: build-only
+        type: choice
+        options:
+          - build-only
+          - patch
+          - minor
+          - major
+      version:
+        description: '仅 build-only 可填打包版本；自动发布时留空'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchlock-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Universal DMG
+    runs-on: macos-15
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      publish: ${{ steps.version.outputs.publish }}
+      create_tag: ${{ steps.version.outputs.create_tag }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
+      artifact: WatchLock-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          publish=false
+          create_tag=false
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            publish=true
+          elif [[ "${RELEASE_TYPE:-build-only}" == "build-only" ]]; then
+            version="${INPUT_VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)}"
+          else
+            if [[ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" || -n "$INPUT_VERSION" ]]; then
+              echo '自动发布须选择默认分支，并将 version 留空。' >&2
+              exit 2
+            fi
+            version=$(python3 Scripts/next-version.py "$RELEASE_TYPE" --run-id "$GITHUB_RUN_ID")
+            publish=true
+            create_tag=true
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+            echo '版本必须为 major.minor.patch 或 major.minor.patch-prerelease' >&2
+            exit 2
+          fi
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+          {
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+            echo "publish=$publish"
+            echo "create_tag=$create_tag"
+            echo "tag=v$version"
+            echo "commit=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+          echo "版本：v$version；发布：$publish" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Test
+        run: |
+          swift test
+          python3 -B -m unittest discover -s Tests/ReleaseTests -v
+
+      - name: Build universal app and DMG
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          SIGN_IDENTITY: '-'
+        run: bash Scripts/build-dmg.sh --universal --no-sandbox
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WatchLock-${{ steps.version.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/WatchLock-${{ steps.version.outputs.version }}.dmg
+            dist/WatchLock-${{ steps.version.outputs.version }}.dmg.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub Release
+    if: needs.build.outputs.publish == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: dist
+
+      - name: Verify checksum
+        working-directory: dist
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: sha256sum -c "WatchLock-$RELEASE_VERSION.dmg.sha256"
+
+      - name: Ensure version tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+          CREATE_TAG: ${{ needs.build.outputs.create_tag }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+        run: |
+          if tag_type=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq .object.type 2>/dev/null); then
+            commit=$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq .sha)
+            if [[ "$commit" != "$RELEASE_COMMIT" ]]; then
+              echo '已有标签与构建提交不一致，拒绝覆盖。' >&2
+              exit 1
+            fi
+            if [[ "$CREATE_TAG" == "true" ]]; then
+              if [[ "$tag_type" != "tag" ]]; then
+                echo '自动版本标签已被占用，拒绝覆盖。' >&2
+                exit 1
+              fi
+              tag_sha=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq .object.sha)
+              message=$(gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.message | split("\n")[0]')
+              if [[ "$message" != "WatchLock release (run $RELEASE_RUN_ID)" ]]; then
+                echo '标签并非由本次流水线创建，拒绝覆盖。' >&2
+                exit 1
+              fi
+            fi
+          elif [[ "$CREATE_TAG" == "true" ]]; then
+            tag_sha=$(gh api --method POST "repos/$GH_REPO/git/tags" \
+              -f "tag=$RELEASE_TAG" -f "message=WatchLock release (run $RELEASE_RUN_ID)" \
+              -f "object=$RELEASE_COMMIT" -f type=commit --jq .sha)
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$tag_sha"
+          else
+            echo '待发布标签不存在，停止发布。' >&2
+            exit 1
+          fi
+
+      - name: Publish Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [[ "$draft" != "true" ]]; then
+              echo '该版本已发布，不覆盖已有 Release；请使用新的版本标签。' >&2
+              exit 1
+            fi
+          else
+            cat > "$RUNNER_TEMP/release-notes.txt" <<'NOTES'
+          ## 安装
+          下载 DMG，打开后将 WatchLock.app 拖入 Applications。
+          通用二进制支持 Apple Silicon 与 Intel，要求 macOS 14+。
+
+          ## 签名与权限
+          当前包为 ad-hoc 签名，未进行 Developer ID 签名或 Apple 公证。
+          macOS 可能阻止首次打开；确认下载来源及 SHA-256 后，可按系统提示在「系统设置 → 隐私与安全性」选择「仍要打开」。受管理设备的策略可能禁止运行。
+          升级后蓝牙或辅助功能授权可能需要重新授予。
+          默认锁屏需要辅助功能权限；可选的私有系统接口未公开，系统升级后可能失效。
+
+          ## 许可
+          PolyForm Noncommercial 1.0.0，DMG 与应用内均附带 LICENSE。商业用途需要另行授权。
+          本项目仅通过 GitHub Release 分发，不发布到 App Store。
+          NOTES
+            args=(--verify-tag --draft --title "WatchLock $RELEASE_TAG" --generate-notes --notes-file "$RUNNER_TEMP/release-notes.txt")
+            if [[ "$PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" "${args[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" \
+            "dist/WatchLock-$RELEASE_VERSION.dmg" \
+            "dist/WatchLock-$RELEASE_VERSION.dmg.sha256" --clobber
+          if [[ "$PRERELEASE" == "true" ]]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi
