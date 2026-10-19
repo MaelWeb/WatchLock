@@ -80,6 +80,16 @@ enum WatchMatcher {
         )
     }
 
+    /// 样本是否来自「已绑定」的手表（精确匹配，不含地址轮换续接）。
+    ///
+    /// **未绑定时一律不接受**。此前未绑定会放行所有强候选设备：名称含 Apple Watch 或命中 Apple 服务
+    /// UUID 的邻居设备就能驱动本机锁屏 / 亮屏，多台设备的 RSSI 还会混进同一个平滑值。
+    /// 引导页允许「跳过」绑定，所以这是真实可达的状态。
+    static func isBoundSample(boundIdentifier: String?, sampleIdentifier: UUID) -> Bool {
+        guard let boundIdentifier else { return false }
+        return boundIdentifier == sampleIdentifier.uuidString
+    }
+
     /// 蓝牙地址轮换（RPA）后是否应把绑定关系迁移到新地址。
     ///
     /// 依据：Apple 开发者论坛有报告指出，未绑定 BLE 外设的 `CBPeer.identifier` 在系统升级

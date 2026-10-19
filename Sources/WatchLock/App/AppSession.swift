@@ -12,9 +12,16 @@ final class AppSession: ObservableObject {
     let scanner = WatchScanner()
     let engine = ProximityEngine(config: SettingsStore.shared.proximityConfig)
     let monitor = SleepWakeMonitor()
+    /// 监听期间阻止 App Nap（仅在启用且未暂停时持有）。
+    private let activity = MonitoringActivity()
     lazy var unlocker = UnlockService(settings: settings, isScreenLocked: { [weak self] in
-        self?.monitor.isScreenLocked ?? false
+        self?.monitor.refreshSessionLockState() ?? false
     })
+    /// 自动锁定闸门：会议 / 演示豁免与手动解锁后重新布防（均默认关闭）。
+    lazy var lockGate = LockGate(config: { [weak self] in self?.settings.lockGateConfig ?? .init() })
+
+    /// 菜单栏提示：自动锁定因会议 / 演示被暂缓。
+    @Published private(set) var lockDeferralNote: String?
 
     @Published private(set) var status: ProximityStatus = .unknown
     @Published private(set) var smoothedRSSI: Double = 0
@@ -27,10 +34,9 @@ final class AppSession: ObservableObject {
     @Published private(set) var falseLockFeedbackAvailable = false
     /// 最近一次自动调参的说明文案。
     @Published private(set) var tuningMessage: String?
-    /// 最近一次锁定的原因（超出距离 / 信号丢失 / 手动），用于排查误锁。
+    /// 最近一次锁定的原因（超出距离 / 信号丢失 / 手动）及时间，用于排查误锁；仅本次运行内有效。
     @Published private(set) var lastLockReason: String?
-    /// 距离上次收到手表广播的秒数（诊断用）。
-    @Published private(set) var secondsSinceLastBroadcast: Int = 0
+    @Published private(set) var lastLockAt: Date?
 
     /// 当前正在模拟的 RSSI（nil 表示未模拟）。模拟期间真实广播被忽略。
     @Published private(set) var simulatedRSSI: Int?
@@ -102,7 +108,17 @@ final class AppSession: ObservableObject {
             }
         }
         monitor.onScreenLocked = { [weak self] in
-            Task { @MainActor in self?.updateStatus(self?.engine.status ?? .unknown) }
+            Task { @MainActor in
+                self?.lockGate.cancel()
+                self?.syncLockDeferralNote()
+                self?.updateStatus(self?.engine.status ?? .unknown)
+            }
+        }
+        monitor.onScreenUnlocked = { [weak self] in
+            Task { @MainActor in
+                guard let self, self.isRunning, self.settings.isEnabled, !self.settings.isPaused else { return }
+                self.lockGate.screenUnlocked(watchIsFar: self.engine.status == .far)
+            }
         }
 
         settings.objectWillChange
@@ -131,6 +147,7 @@ final class AppSession: ObservableObject {
 
     func stop() {
         isRunning = false
+        activity.stop()
         housekeepingTimer?.invalidate()
         housekeepingTimer = nil
         stopSimulating()
@@ -195,6 +212,7 @@ final class AppSession: ObservableObject {
         scanner.boundIdentifier = settings.boundWatchID.flatMap(UUID.init(uuidString:))
         // 暂停或关闭时切到间歇扫描，降低耗电（FR-12）。
         scanner.setMode(settings.isEnabled && !settings.isPaused ? .continuous : .lowPower)
+        activity.setRequired(isRunning && settings.isEnabled && !settings.isPaused)
         bluetoothState = scanner.bluetoothState
         scannerMessage = scanner.lastError
         if settings.isPaused {
@@ -215,17 +233,70 @@ final class AppSession: ObservableObject {
         housekeepingTimer = timer
     }
 
+    // MARK: - 锁定闸门（规则见 `LockGate`）
+
+    /// 1 秒一次：条件不再满足时放弃待处理动作，否则让闸门结算（会议结束补锁 / 空闲后重新布防）。
+    private func driveLockGate() {
+        let active = isRunning && settings.isEnabled && !settings.isPaused
+            && !monitor.isSystemSleeping && !monitor.isScreenLocked && !bluetoothOutageActive
+        guard active else {
+            lockGate.cancel()
+            syncLockDeferralNote()
+            return
+        }
+        if let grant = lockGate.tick(watchIsFar: engine.status == .far) {
+            performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
+        }
+        syncLockDeferralNote()
+    }
+
+    private func syncLockDeferralNote() {
+        let note = lockGate.deferralNote
+        if note != lockDeferralNote { lockDeferralNote = note }
+    }
+
+    // MARK: - 蓝牙不可用期间（规则见 `BluetoothOutage`）
+
+    private var bluetoothOutageActive = false
+
+    private func syncBluetoothAvailability() {
+        let state = scanner.bluetoothState
+        switch BluetoothOutage.transition(wasUnavailable: bluetoothOutageActive, state: state) {
+        case .none:
+            return
+        case .began:
+            bluetoothOutageActive = true
+            DiagnosticsLog.shared.append(.warning, "蓝牙不可用（\(state.title)），暂停信号丢失结算")
+            // 蓝牙不可用不等于手表离开：停掉状态机，避免约 20 秒后按「信号丢失」误锁。
+            engine.stop()
+            engine.reset()
+            unlocker.cancelPendingApproach()
+            if settings.isEnabled, !settings.isPaused { updateStatus(.unknown) }
+            if settings.notificationsEnabled, settings.boundWatchID != nil, settings.isEnabled, !settings.isPaused {
+                NotificationPresenter.shared.notify(
+                    title: "蓝牙不可用",
+                    body: BluetoothOutage.notificationBody(for: state),
+                    reason: .bluetoothIssue
+                )
+            }
+        case .ended:
+            bluetoothOutageActive = false
+            wakeGraceUntil = Date().addingTimeInterval(settings.unlockGraceAfterWake)
+            DiagnosticsLog.shared.append(.info, "蓝牙已恢复，重置状态并进入宽限期")
+            if isRunning, !monitor.isSystemSleeping { engine.start() }
+        }
+    }
+
     private func housekeeping() {
         bluetoothState = scanner.bluetoothState
         scannerMessage = scanner.lastError
+        syncBluetoothAvailability()
+        driveLockGate()
 
         // 绑定后自动校准的收尾（手表长时间没有广播时也要结算）。
         if let deadline = bindCalibrationDeadline, Date() > deadline {
             finishBindCalibration()
         }
-
-        let broadcastAge = lastSeen.map { Int(Date().timeIntervalSince($0)) } ?? 0
-        if broadcastAge != secondsSinceLastBroadcast { secondsSinceLastBroadcast = broadcastAge }
 
         // 误锁反馈入口只在自动锁定后的 10 分钟内可用。
         if let last = lastAutoLockAt {
@@ -406,7 +477,7 @@ final class AppSession: ObservableObject {
     // MARK: - 内部处理
 
     private func handleRSSI(identifier: UUID, rssi: Int, date: Date) {
-        // 已绑定设备时，其他设备的信号不参与判定，也不更新「最后更新」时间。
+        // 仅已绑定设备的信号参与判定，也不更新「最后更新」时间；未绑定时一律忽略。
         guard matchesBoundWatch(identifier) else { return }
         lastSeen = date
         collectBindCalibrationSample(rssi: rssi, date: date)
@@ -439,8 +510,11 @@ final class AppSession: ObservableObject {
 
     /// 判断样本是否来自已绑定手表；若只是蓝牙地址轮换（RPA）导致 ID 变化，则自动续接绑定。
     private func matchesBoundWatch(_ identifier: UUID) -> Bool {
-        guard let bound = settings.boundWatchID else { return true }
-        if bound == identifier.uuidString { return true }
+        // 模拟信号使用专用标识（真实广播在模拟期间已被忽略），未绑定时也要能走通调试流程。
+        if identifier == simulationIdentifier, simulatedRSSI != nil { return true }
+        // 未绑定时不接受任何真实设备：否则邻居的 Apple 设备也能驱动本机锁屏 / 亮屏。
+        guard let bound = settings.boundWatchID else { return false }
+        if WatchMatcher.isBoundSample(boundIdentifier: bound, sampleIdentifier: identifier) { return true }
 
         guard let device = scanner.candidates[identifier],
               WatchMatcher.shouldRebind(
@@ -464,8 +538,13 @@ final class AppSession: ObservableObject {
         switch event {
         case .becameFar(let reason):
             unlocker.cancelPendingApproach()
-            performLock(reason: reason.title)
+            if let grant = lockGate.request(reason: reason.title) {
+                performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
+            }
+            syncLockDeferralNote()
         case .becameNear:
+            lockGate.cancel()
+            syncLockDeferralNote()
             guard isRunning, !monitor.isSystemSleeping else { return }
             // 锁屏不阻止显示器唤醒；显示器亮起与会话解锁分别由 monitor 跟踪。
             unlocker.handleApproach()
@@ -481,7 +560,7 @@ final class AppSession: ObservableObject {
             DiagnosticsLog.shared.append(.info, "处于唤醒宽限期，跳过锁定")
             return
         }
-        guard !monitor.isScreenLocked else {
+        guard !monitor.refreshSessionLockState() else {
             DiagnosticsLog.shared.append(.info, "屏幕已锁定，跳过本次锁定")
             return
         }
@@ -502,6 +581,7 @@ final class AppSession: ObservableObject {
         }
         guard locker.lock() else { return }
         lastLockReason = reason
+        lastLockAt = Date()
 
         if isAutomatic {
             settings.recordAutoLock()

@@ -30,6 +30,10 @@ final class SettingsStore: ObservableObject {
         static let debugLogging = "settings.debugLogging"
         static let debugMenuEnabled = "settings.debugMenuEnabled"
         static let confirmBeforeLock = "settings.confirmBeforeLock"
+        static let meetingExemptionEnabled = "settings.meetingExemptionEnabled"
+        static let meetingMaxDeferralMinutes = "settings.meetingMaxDeferralMinutes"
+        static let rearmAfterManualUnlock = "settings.rearmAfterManualUnlock"
+        static let rearmIdleMinutes = "settings.rearmIdleMinutes"
         static let hasCompletedOnboarding = "settings.hasCompletedOnboarding"
         static let autoLockCount = "stats.autoLockCount"
         static let falseLockCount = "stats.falseLockCount"
@@ -43,6 +47,16 @@ final class SettingsStore: ObservableObject {
         /// Apple 设备的 BLE 广播会随设备状态动态启停，12 秒太短，默认放宽到 20 秒。
         /// 依据见 `docs/anti-false-lock-research.md` 证据 2。
         static let signalLostTimeout: Double = 20
+        /// 会议 / 演示豁免：最长暂缓时间（分钟）。硬上限，避免让锁屏长期失效。
+        static let meetingMaxDeferralMinutes = 60
+        static let meetingMaxDeferralRange = 5 ... 240
+        /// 手动解锁后重新布防：键鼠空闲多久（分钟）后再锁。
+        static let rearmIdleMinutes = 5
+        static let rearmIdleRange = 1 ... 60
+    }
+
+    private static func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
+        min(max(value, range.lowerBound), range.upperBound)
     }
 
     /// 默认使用 `UserDefaults.standard`，测试时可注入独立 suite 避免污染真实设置。
@@ -77,6 +91,16 @@ final class SettingsStore: ObservableObject {
         debugLogging = defaults.object(forKey: Key.debugLogging) as? Bool ?? false
         debugMenuEnabled = defaults.object(forKey: Key.debugMenuEnabled) as? Bool ?? false
         confirmBeforeLock = defaults.object(forKey: Key.confirmBeforeLock) as? Bool ?? false
+        meetingExemptionEnabled = defaults.object(forKey: Key.meetingExemptionEnabled) as? Bool ?? false
+        meetingMaxDeferralMinutes = Self.clamp(
+            defaults.object(forKey: Key.meetingMaxDeferralMinutes) as? Int ?? Defaults.meetingMaxDeferralMinutes,
+            Defaults.meetingMaxDeferralRange
+        )
+        rearmAfterManualUnlock = defaults.object(forKey: Key.rearmAfterManualUnlock) as? Bool ?? false
+        rearmIdleMinutes = Self.clamp(
+            defaults.object(forKey: Key.rearmIdleMinutes) as? Int ?? Defaults.rearmIdleMinutes,
+            Defaults.rearmIdleRange
+        )
         hasCompletedOnboarding = defaults.object(forKey: Key.hasCompletedOnboarding) as? Bool ?? false
         autoLockCount = defaults.object(forKey: Key.autoLockCount) as? Int ?? 0
         falseLockCount = defaults.object(forKey: Key.falseLockCount) as? Int ?? 0
@@ -118,6 +142,31 @@ final class SettingsStore: ObservableObject {
     @Published var debugMenuEnabled: Bool { didSet { defaults.set(debugMenuEnabled, forKey: Key.debugMenuEnabled) } }
     /// 菜单栏「立即锁定」点击后是否先弹确认（默认关闭，保持一键锁屏的效率）。
     @Published var confirmBeforeLock: Bool { didSet { defaults.set(confirmBeforeLock, forKey: Key.confirmBeforeLock) } }
+
+    /// 会议 / 演示豁免（默认关闭）：有应用阻止显示器睡眠时暂缓自动锁定。有「该锁没锁」的风险，所以默认关。
+    @Published var meetingExemptionEnabled: Bool {
+        didSet { defaults.set(meetingExemptionEnabled, forKey: Key.meetingExemptionEnabled) }
+    }
+    @Published var meetingMaxDeferralMinutes: Int {
+        didSet { defaults.set(meetingMaxDeferralMinutes, forKey: Key.meetingMaxDeferralMinutes) }
+    }
+    /// 手动输密码解锁后，手表仍在远处时是否在键鼠空闲后重新锁定（默认关闭）。
+    @Published var rearmAfterManualUnlock: Bool {
+        didSet { defaults.set(rearmAfterManualUnlock, forKey: Key.rearmAfterManualUnlock) }
+    }
+    @Published var rearmIdleMinutes: Int {
+        didSet { defaults.set(rearmIdleMinutes, forKey: Key.rearmIdleMinutes) }
+    }
+
+    /// 生成锁定闸门配置。
+    var lockGateConfig: LockGate.Config {
+        .init(
+            meetingExemptionEnabled: meetingExemptionEnabled,
+            maxDeferral: TimeInterval(Self.clamp(meetingMaxDeferralMinutes, Defaults.meetingMaxDeferralRange) * 60),
+            rearmEnabled: rearmAfterManualUnlock,
+            rearmIdle: TimeInterval(Self.clamp(rearmIdleMinutes, Defaults.rearmIdleRange) * 60)
+        )
+    }
     /// FR-01：首次启动引导是否已完成。
     @Published var hasCompletedOnboarding: Bool { didSet { defaults.set(hasCompletedOnboarding, forKey: Key.hasCompletedOnboarding) } }
 

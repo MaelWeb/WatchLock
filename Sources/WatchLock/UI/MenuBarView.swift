@@ -17,9 +17,9 @@ struct MenuBarView: View {
         // 区块间距 12；仅「状态卡 → 扫描告警 → 主开关」在出现告警时收紧到 8，
         // 让告警行贴着状态卡而不是漂在中间（设计稿 01-menubar 场景 3）。
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            VStack(alignment: .leading, spacing: session.scannerMessage == nil ? WLSpacing.md : WLSpacing.sm) {
+            VStack(alignment: .leading, spacing: warningMessage == nil ? WLSpacing.md : WLSpacing.sm) {
                 status
-                if let message = session.scannerMessage {
+                if let message = warningMessage {
                     scannerWarning(message)
                 }
                 masterToggle
@@ -62,7 +62,22 @@ struct MenuBarView: View {
                     .font(WLFont.body.monospacedDigit())
             }
             MetricRow(label: "最后更新", value: lastSeenText)
+            if let reason = session.lastLockReason, let date = session.lastLockAt {
+                MetricRow(label: "上次锁定", value: LastLockSummary.text(reason: reason, at: date))
+            }
         }
+    }
+
+    /// 状态卡下方的告警，按优先级只显示一条：
+    /// 扫描器自身的问题 > 因会议 / 演示暂缓锁定（安全相关：此刻不会自动锁屏） > 未绑定手表。
+    /// 模拟信号期间不提示未绑定（调试流程不需要绑定）。
+    private var warningMessage: String? {
+        if let message = session.scannerMessage { return message }
+        if let note = session.lockDeferralNote { return note }
+        if settings.boundWatchID == nil, session.simulatedRSSI == nil {
+            return "尚未绑定手表，自动锁定暂不生效（设置 → 设备）"
+        }
+        return nil
     }
 
     private var subtitle: String {

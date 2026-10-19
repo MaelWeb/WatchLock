@@ -225,6 +225,10 @@ stateDiagram-v2
    - 手表关机 15 秒后 Mac 进入锁定状态，日志中可见原因；
    - 已锁屏状态下不会重复触发锁屏命令；
    - 暂停期间即使手表离开也不锁定。
+5. **自动锁定的两个例外（均默认关闭，由 `LockGate` 实现）**——它们会让「该锁没锁」，所以必须由用户主动开启：
+   - **会议 / 演示豁免**：开启后，状态机判定离开时若有应用持有「阻止显示器睡眠」断言（`PreventUserIdleDisplaySleep`），则暂缓锁定、菜单栏提示，持有者消失后补锁；暂缓有**硬上限**（默认 60 分钟，可设 5–240），到点无论如何都锁；用户主动运行的 `caffeinate` 与系统 `powerd` 不计入；查不到断言表时按「没有持有者」处理（照常锁屏）。
+   - **手动解锁后重新布防**：开启后，用户手动解锁时若手表仍判定为「已离开」，则键鼠空闲满设定时间（默认 5 分钟，可设 1–60）后再锁一次；按空闲而非固定延时，避免在用户操作中突然锁屏；查不到空闲时长时不锁。此类锁定不计入误锁反馈 / 自动调参样本。
+   - 手表回到身边、暂停 / 关闭、整机睡眠、会话已锁定、蓝牙不可用时，待处理的暂缓 / 布防一律取消。
 
 ### FR-05 靠近唤醒与解锁（P1）
 
@@ -234,7 +238,7 @@ stateDiagram-v2
 | 策略 | 行为 | 风险 |
 | --- | --- | --- |
 | 仅唤醒屏幕 | 只点亮显示器，解锁交给用户或系统 | 无 |
-| 系统自动解锁（默认） | 点亮 + 检查系统前置条件（锁屏后是否要求立即输入密码等），缺失时引导到系统设置 | 无 |
+| 系统自动解锁（默认） | 点亮 + 检查系统前置条件（`sysadminctl -screenLock status` 是否为「立即」、`LAContext` companion 策略是否报告附近有可用 Apple Watch），缺失时引导到系统设置；探测结果无法识别时不报缺失 | 无 |
 | 托管密码自动输入 | 从钥匙串读取密码，Apple Events 模拟键入 | 高：需辅助功能权限，密码以 `WhenUnlockedThisDeviceOnly` 存钥匙串，系统更新可能失效 |
 
 3. 必须在 UI 上明示：Apple 未开放第三方自动解锁 API，最可靠路径是开启系统「使用 Apple Watch 解锁」。
@@ -251,7 +255,7 @@ stateDiagram-v2
 ### FR-07 菜单栏状态与控制（P0）
 
 1. 常驻图标随状态变化五态：`在身边 / 已离开 / 搜索中 / 已暂停 / 已关闭`。图标由 logo 提炼（环形锁体 + 锁梁），代码绘制为模板图，设计见 `docs/ui-design/08-menubar-icons.html`。同一套图标同时用于面板状态卡（`StatusIcon`），两处图形与状态映射必须一致。
-2. 面板内容：状态标题、绑定设备名、信号强度、估算距离、最后更新时间、蓝牙异常提示。
+2. 面板内容：状态标题、绑定设备名、信号强度、估算距离、最后更新时间、上次锁定（时间 · 原因，仅本次运行内有效）、蓝牙异常提示、未绑定手表提示。
 3. 快捷操作：启用开关、暂停菜单、立即锁定、设置、退出。
 
 ### FR-08 设置界面（P0）
@@ -270,6 +274,8 @@ stateDiagram-v2
 1. 触发时机：执行自动锁定、蓝牙被关闭、权限缺失、自动解锁前置条件缺失。
 2. 通知频率限制：同一原因 5 分钟内最多 1 条。
 3. 可在设置中整体关闭。
+4. 蓝牙不可用（关闭 / 重置 / 无权限 / 不支持）期间：**暂停信号丢失结算**并发一条通知说明原因（蓝牙不可用不等于手表离开）；恢复后重置状态机并给一段宽限期（复用 `unlockGraceAfterWake`）。仅在已绑定手表、已启用且未暂停时通知。
+5. 未绑定手表时，真实设备的广播一律不参与判定（只有调试模拟信号例外），菜单栏提示去绑定。
 
 ### FR-10 开机启动（P2）
 
@@ -414,6 +420,8 @@ stateDiagram-v2
 | ADR-08 | 定位为「离开即锁屏」，不追求复刻 Apple 官方识别可靠性 | 自己实现手表在场判定 + 解锁 | Apple 官方「用 Apple Watch 解锁」依赖 iCloud 身份 + 双重认证 + Continuity，第三方无对应 API；官方方案只覆盖解锁、不覆盖离开锁屏，本项目补的正是这一段。依据见 `docs/anti-false-lock-research.md` |
 | ADR-09 | 仅通过 GitHub Release 分发，GitHub Actions 构建通用 DMG；CI 默认 ad-hoc 签名 | App Store；先等 Developer ID 公证再发布 | 用户指定 GitHub 流水线打包与 Release 渠道；DMG 打包不依赖 Apple 证书。明示未公证、Gatekeeper 与升级后重新授权风险，签名 / 公证保留为后续增强 |
 | ADR-10 | 靠近时用公开用户活动断言请求亮屏，显示器 / 会话 / 整机睡眠独立跟踪 | 仅启动 caffeinate 并视为成功；锁屏时跳过唤醒 | 锁屏不能阻断亮屏；IOKit 返回码与 NSWorkspace 显示器通知分别记录请求结果和系统唤醒报告，避免把亮屏视为解锁；官方头文件及文档依据见 `DEVELOPMENT.md`，锁屏亮屏效果待真机验证 |
+| ADR-11 | 外围系统探测改用可验证来源：锁屏延迟读 `sysadminctl -screenLock status`；手表认证条件用 `LAContext` companion 策略；会话锁定用 `CGSessionCopyCurrentDictionary` 校正通知状态；监听期间持有 `userInitiatedAllowingIdleSystemSleep` 活动 | 读 `defaults askForPassword`；`system_profiler` 文本匹配；仅信任私有通知；不做 App Nap 防护 | 旧探测在 macOS 26 上读不到键 / 匹配的是未连接条目，会误报「无法自动解锁」；探测无法识别时一律不报缺失。companion 策略**只用于前置条件提示，未接入锁屏判定**（走远后是否变为不可用无证据）。依据与实测见 `docs/anti-false-lock-research.md` §6.1 |
+| ADR-12 | 自动锁定增加「闸门」`LockGate`：会议 / 演示豁免（读电源断言，暂缓 + 硬上限）与手动解锁后重新布防（键鼠空闲判据），**两项都默认关闭**，纯逻辑与系统探针分离、时间与探针均可注入 | 默认开启豁免；固定延时重新布防；用窗口 / 摄像头 / 麦克风占用判断会议 | 豁免会让「该锁没锁」，必须 opt-in 并有硬上限；断言接口已在**沙箱 .app**（与发布包相同 entitlements）内实测可读他进程断言（裸命令行程序带沙箱会 133 退出，不能用于验证），摄像头 / 麦克风判断需要额外权限与更多隐私面，不采用；空闲判据避免在用户操作中突然锁屏。依据与实测见 `docs/anti-false-lock-research.md` §6.2 |
 
 ---
 
@@ -434,7 +442,7 @@ stateDiagram-v2
 | FR-02 扫描与绑定 | 已实现（多证据识别 + Continuity 广播解析 + 地址轮换时用广播类型指纹校验续接） | `Core/Bluetooth/WatchScanner.swift`、`Core/Bluetooth/AppleAdvertisement.swift` |
 | 广播抓包（真机固化识别规则） | 已实现（「诊断」页展示厂商数据并支持复制） | `UI/Settings/DiagnosticsPage.swift` |
 | FR-03 距离判定 | 已实现 | `Core/Proximity/ProximityEngine.swift` |
-| FR-04 自动锁定 | 已实现（默认 ⌃⌘Q；可选私有 `SACLockScreenImmediate` 免授权，运行时解析 + 降级通知） | `Core/Lock/ScreenLocker.swift`、`Core/Lock/SystemLockScreen.swift`、`App/AppSession.swift` |
+| FR-04 自动锁定 | 已实现（默认 ⌃⌘Q；可选私有 `SACLockScreenImmediate` 免授权，运行时解析 + 降级通知；可选「会议 / 演示暂缓」与「手动解锁后重新布防」，默认关闭） | `Core/Lock/ScreenLocker.swift`、`Core/Lock/SystemLockScreen.swift`、`Core/Lock/LockGate.swift`、`Core/System/PowerAssertionProbe.swift`、`App/AppSession.swift` |
 | FR-05 唤醒解锁 | 已实现（策略骨架，需真机调优） | `Core/Unlock/UnlockService.swift` |
 | FR-06 暂停 | 已实现 | `Storage/SettingsStore.swift` |
 | FR-07/08 UI | 已实现（状态卡与菜单栏同源五态图标；通用页「锁定方式」含私有接口可用性提示） | `UI/MenuBarView.swift`、`UI/SettingsView.swift`、`UI/Design/StatusIcon.swift` |
@@ -443,7 +451,7 @@ stateDiagram-v2
 | FR-10 开机启动 | 已实现（设置项与系统登录项状态同步） | `Core/System/LaunchManager.swift`、`UI/SettingsView.swift` |
 | FR-01 首次引导页 | 已实现（授权 → 绑定 → 确认参数 3 步向导，「关于」页可重跑） | `UI/OnboardingView.swift` |
 | FR-13 睡眠联动 | 已实现（睡眠停止扫描、唤醒恢复扫描并重置状态机） | `Core/System/SleepWakeMonitor.swift`、`App/AppSession.swift` |
-| FR-12 低耗电 | 已实现（暂停/关闭时改为间歇扫描、候选 60 秒清理、前置条件探测结果缓存） | `Core/Bluetooth/WatchScanner.swift`、`App/AppSession.swift` |
+| FR-12 低耗电 | 已实现（暂停/关闭时改为间歇扫描、候选 60 秒清理；监听期间声明 `userInitiatedAllowingIdleSystemSleep` 活动防 App Nap，暂停/关闭时释放） | `Core/Bluetooth/WatchScanner.swift`、`Core/System/MonitoringActivity.swift`、`App/AppSession.swift` |
 | FR-14 距离校准向导 | 已实现（1 米标定 + 两点标定生成阈值，采样 10 秒） | `Core/Proximity/DistanceCalibrator.swift`、`UI/CalibrationWizard.swift` |
 | FR-16 误锁反馈与自动调参 | 已实现（菜单栏反馈入口 + `AutoTuner` 纯逻辑 + 诊断页统计与恢复默认） | `Core/Proximity/AutoTuner.swift`、`App/AppSession.swift`、`UI/MenuBarView.swift` |
 | FR-17 调试用 RSSI 模拟 | 已实现（调试子菜单 + `WATCHLOCK_FAKE_RSSI` 环境变量，默认关闭） | `App/AppSession.swift`、`UI/MenuBarView.swift` |
@@ -453,13 +461,13 @@ stateDiagram-v2
 | GitHub Release 发布链路 | 流水线已实现（手动选择 patch / minor / major 自动递增版本、打包后创建标签并在同一次运行发布；保留已有标签发布与 build-only 仅打包；重跑复用本次标签；默认 ad-hoc，首次云端执行待验证） | `.github/workflows/release.yml`、`Scripts/next-version.py`、`Scripts/build-app.sh`、`Scripts/build-dmg.sh` |
 | 发布版本测试 | 已实现（15 例，覆盖递增、数值排序、预发布过滤、初始版本及同一流水线重跑保护） | `Tests/ReleaseTests/test_next_version.py` |
 | 开源许可 | PolyForm Noncommercial 1.0.0（禁止商用） | `LICENSE` |
-| 单元测试 | 已实现（117 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为） | `Tests/WatchLockTests` |
+| 单元测试 | 已实现（182 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为 / 前置条件探测 / 会话锁定校正 / 监听活动） | `Tests/WatchLockTests` |
 
 ---
 
 ## 14. 测试与验收
 
-### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 117 例）
+### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 182 例）
 
 | 用例 | 输入 | 期望 |
 | --- | --- | --- |
@@ -510,6 +518,8 @@ stateDiagram-v2
 | R-05 | 托管密码模式的安全与合规风险 | 高 | 默认关闭、二次警示、钥匙串最小权限、日志脱敏 |
 | R-06 | 沙箱 + 蓝牙权限在部分系统设置组合下不生效 | 中 | 提供诊断页与权限自检入口 |
 | R-07 | 当前 ad-hoc Release 未做 Apple 公证，Gatekeeper 可能阻止首次运行；升级后 TCC 授权可能失效 | 中 | Release 与 README 明示来源校验、系统允许打开入口及重新授权限制；受管理设备可能禁止运行。Developer ID 签名 / 公证是后续增强，不阻塞 GitHub DMG 发布 |
+| R-09 | 手动输密码解锁后手表仍在远处（如在充电）时，状态机已是「已离开」，默认不会再次锁定 | 中 | **已提供可选项（默认关闭）**「手动解锁后重新布防」，见 FR-04 §5 / ADR-12。默认保持关闭是因为该行为对部分用户是预期（手动解锁即表示本人在场） |
+| R-10 | 会议、演示期间自动锁屏会打断，但豁免本身有「该锁没锁」的安全风险；且只验证了系统接口，**没有逐一验证具体会议软件是否都持有「阻止显示器睡眠」断言** | 中 | **已提供可选项（默认关闭）**：硬上限（默认 60 分钟，最大 240）、忽略 `caffeinate` / `powerd`、查不到断言时照常锁、设置页写明代价。真实会议软件覆盖面待真机观察，见 `DEVELOPMENT.md` |
 
 ---
 
@@ -548,3 +558,6 @@ stateDiagram-v2
 | v1.11 | 2026-10-16 | 新增手动 patch / minor / major 自动版本发布：从最高稳定标签递增，无标签时读取源码 plist；仅默认分支允许自动发布，默认 build-only 保留仅打包行为。测试与 DMG 成功后创建指向构建提交的注释标签，并在同一次运行发布，无需额外 PAT；标签带 run_id，重跑复用且拒绝覆盖冲突标签，artifact 按运行尝试独立命名。新增 15 例 Python 发布逻辑测试，Swift 保持 117 例；actionlint 校验通过，未创建真实标签或触发云端发布 |
 | v1.12 | 2026-10-16 | 修复旧 SwiftPM Universal XCBuild 路径的语言模式校验失败：将 Swift 5 从目标级改为包级声明并由两个目标继承，避免 `given: [5], supported: []` 与后续空 `SWIFT_VERSION`；依据为 SwiftPM 6.0 官方 PackageBuilder / PIFBuilder 源码，见 `DEVELOPMENT.md`。新增真实清单解析回归测试（Python 共 16 例），CI 输出 Xcode / Swift 工具链信息。本地 Xcode 26.3 / Swift 6.2.4 下 117 例 Swift 测试、16 例发布测试及 actionlint / ShellCheck 通过，按 RELEASE_VERSION=1.0.0 / BUILD_NUMBER=2 完成 Universal DMG、双架构与签名 / SHA-256 校验；旧云端工具链未记录，需在包含修复的新提交上重新启动发布验证，未提交 / 推送 / 发布 |
 | v1.13 | 2026-10-16 | 修复锁屏后靠近无法亮屏的明确代码阻断：移除 AppSession 的锁屏跳过唤醒 guard，独立跟踪会话锁定、显示器熄屏和整机睡眠；改用公开 IOPMAssertionDeclareUserActivity 并记录 IOKit 返回码与系统亮屏通知，按新有效近距离样本进行最多一次冷却后补偿，远离 / 停止 / 整机睡眠取消。托管密码仅在会话锁定状态下读取 / 输入；新增 17 例隔离系统操作的 XCTest，Swift 共 134 例与16例发布测试通过，arm64 / x86_64 Universal release 构建通过。Apple 官方源码 / 文档依据见 DEVELOPMENT.md 与 ADR-10；真实锁屏亮屏、非公开会话通知及原生解锁效果待真机验证，不承诺手表 BLE 从整机睡眠或合盖唤醒 Mac；未重新生成安装包或提交 / 推送 |
+| v1.14 | 2026-10-19 | 按「查官方文档找更优方案」复检外围探测并落地 4 项（ADR-11，依据与本机实测见 `docs/anti-false-lock-research.md` §6.1）：①自动解锁前置条件改读 `sysadminctl -screenLock status`，旧 `askForPassword` 在 macOS 26.6.1 上读不到键；②「手表在场」提示改用 `LAContext` companion 策略（macOS 15+，14 用 `...WithWatch`），去掉同步 `system_profiler` 与永久缓存；③会话锁定状态在启动 / 唤醒 / 锁定前 / 自动解锁前用 `CGSessionCopyCurrentDictionary` 校正，防止漏收「解锁」通知后永久跳过自动锁定；④监听期间持有 `userInitiatedAllowingIdleSystemSleep` 活动防 App Nap（实测不产生电源断言）。更正调研文档中 Nearby Interaction「仅 iOS/watchOS」的表述。Swift 单测 134 → 152 例，`swift build` 无警告。**未做 / 待真机验证**：`CGSSessionScreenIsLocked` 在锁屏态的取值；companion 策略在手表走远后是否变不可用（故未接入锁屏判定）；无 App Nap 防护时是否真被限速；未生成安装包或提交 / 推送 |
+| v1.15 | 2026-10-19 | 补齐「已声明未兑现」的功能缺口（均为读代码发现，未在真机复现）：①**未绑定手表时不再接受任何真实设备样本**（此前放行所有强候选，邻居的 Apple 设备可驱动本机锁屏 / 亮屏；引导页允许「跳过」绑定，该状态可达），调试模拟信号例外，菜单栏提示去绑定；②**蓝牙不可用**（关闭 / 重置 / 无权限 / 不支持）期间暂停信号丢失结算并发 `bluetoothIssue` 通知，恢复后重置状态机并给宽限期（FR-09 声明但此前无任何发送点，会被误判为「信号丢失」锁屏且原因文案误导）；③菜单栏状态卡显示「上次锁定：时间 · 原因」（`lastLockReason` 此前只写不读），删除无读取方的 `secondsSinceLastBroadcast`；④README 更正：通知权限、去掉不存在的「信号曲线」。Swift 单测 152 → 162 例，`swift build` 无警告。新增 R-09（手动解锁后不重新布防）与 R-10（会议豁免）两项**待产品决策**，未实现。**行为变化**：蓝牙关闭不再导致锁屏——若安全优先的用户希望关蓝牙也锁，需另做选项；未在真机验证蓝牙关闭 / 恢复的实际表现；未生成安装包或提交 / 推送 |
+| v1.16 | 2026-10-19 | 落地 v1.15 遗留的两项待决策（ADR-12，R-09 / R-10 状态改为「已提供可选项」）：①**会议 / 演示豁免**：状态机判定离开时若有应用持有 `PreventUserIdleDisplaySleep` 断言则暂缓锁定并在菜单栏提示，结束后补锁，**硬上限**默认 60 分钟（5–240），忽略 `caffeinate` / `powerd`，查不到断言时照常锁；②**手动解锁后重新布防**：手动解锁时手表仍判定为离开，则键鼠空闲满 N 分钟（默认 5，1–60）后再锁，不计入误锁调参样本。**两项均默认关闭**，设置页「通用 → 自动锁定的例外」写明代价。系统接口已实测：`IOPMCopyAssertionsByProcess` 与 `CGEventSource` 空闲时长在**沙箱 .app**（与发布包同 entitlements）内可用；旧 `NoDisplaySleepAssertion` 以 `AssertionTrueType` 归一识别。Swift 单测 162 → 182 例，`swift build` 无警告。**未验证**：Zoom / Teams / Keynote / 浏览器会议等具体软件是否都持有该断言（只验证了接口与 `caffeinate`）；手动解锁通知在真机上的触发时序；重新布防在睡眠 / 合盖等场景的表现；未生成安装包或提交 / 推送 |

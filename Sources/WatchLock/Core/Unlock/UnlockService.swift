@@ -7,6 +7,7 @@ final class UnlockService {
     private let keychain: KeychainStore
     private let wakeDisplay: () -> Bool
     private let isScreenLocked: () -> Bool
+    private let evaluatePrerequisites: () -> [String]
 
     /// 两次靠近处理之间的最小间隔，避免临界抖动时反复唤醒（FR-05 / FR-12）。
     var approachCooldown: TimeInterval = 10
@@ -17,12 +18,14 @@ final class UnlockService {
         settings: SettingsStore,
         keychain: KeychainStore = .init(),
         wakeDisplay: @escaping () -> Bool = { ScreenLocker.wakeDisplay() },
-        isScreenLocked: @escaping () -> Bool = { false }
+        isScreenLocked: @escaping () -> Bool = { false },
+        evaluatePrerequisites: @escaping () -> [String] = { AutoUnlockPrerequisites.evaluate() }
     ) {
         self.settings = settings
         self.keychain = keychain
         self.wakeDisplay = wakeDisplay
         self.isScreenLocked = isScreenLocked
+        self.evaluatePrerequisites = evaluatePrerequisites
     }
 
     /// 手表靠近时的处理入口，锁屏状态不影响点亮显示器。
@@ -80,13 +83,7 @@ final class UnlockService {
 
     /// 检查系统「使用 Apple Watch 解锁」的前置条件，缺失则提示。
     func verifyAutoUnlockPrerequisites() {
-        var missing: [String] = []
-        if !isScreenSaverPasswordRequired {
-            missing.append("「系统设置 → 锁定屏幕」中未要求立即输入密码")
-        }
-        if !isAppleWatchPairedHeuristic {
-            missing.append("未检测到与本 Mac 同一 iCloud 账户的 Apple Watch（无法自动确认）")
-        }
+        let missing = evaluatePrerequisites()
         guard !missing.isEmpty else { return }
         DiagnosticsLog.shared.append(.warning, "自动解锁前置条件缺失：\(missing.joined(separator: "；"))")
         if settings.notificationsEnabled {
@@ -127,28 +124,6 @@ final class UnlockService {
         }
     }
 
-    // MARK: - 前置条件探测
-
-    /// 读取 `screensaver` 偏好判断是否要求立即输入密码。
-    private var isScreenSaverPasswordRequired: Bool {
-        guard let value = UserDefaults(suiteName: "com.apple.screensaver")?.object(forKey: "askForPassword") as? Int else {
-            return false
-        }
-        return value == 1
-    }
-
-    /// 仅能判断本机是否有已配对的蓝牙设备，无法直接确认 iPhone/手表配对关系。
-    ///
-    /// `system_profiler` 开销较大，结果在进程内缓存（FR-12 低耗电）。
-    private var isAppleWatchPairedHeuristic: Bool {
-        if let cached = cachedPairedWatch { return cached }
-        let output = Shell.run("/usr/sbin/system_profiler", arguments: ["SPBluetoothDataType"])
-        let result = output.localizedCaseInsensitiveContains("Apple Watch")
-        cachedPairedWatch = result
-        return result
-    }
-
-    private var cachedPairedWatch: Bool?
 }
 
 /// AppleScript 字符串转义。

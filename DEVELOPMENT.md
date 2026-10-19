@@ -35,6 +35,36 @@ SIGN_IDENTITY="Apple Development: ..." ./Scripts/build-app.sh --debug
 
 限制：程序在整机睡眠时停止扫描，不能靠手表 BLE 从整机睡眠/合盖状态唤醒 Mac；系统先唤醒后才恢复扫描。手表一直在附近时手动锁屏不会凭已有 near 状态自动亮屏，避免立即抵消用户手动锁屏。会话锁定继续使用既有非公开分布式通知，系统升级后的通知行为、锁屏亮屏效果与 Apple Watch 原生解锁均待真机验证；尚未得到与本故障一致的一手开发者论坛报告，未据此推断额外系统限制。
 
+### 系统探测与真机验证清单（2026-10-19）
+
+依据与本机实测见 `docs/anti-false-lock-research.md` §6.1。以下三项**尚未真机验证**，不要当作既定事实：
+
+```bash
+# 1) 锁屏态下会话字典是否出现 CGSSessionScreenIsLocked（先运行，立刻按 ⌃⌘Q 锁屏，数秒后用手表/触控 ID 解锁，再看输出）
+swift -e 'import Quartz; import Foundation; for _ in 0..<20 { let d = CGSessionCopyCurrentDictionary() as? [String: Any]; print(Date(), d?["CGSSessionScreenIsLocked"] ?? "absent"); Thread.sleep(forTimeInterval: 1) }'
+
+# 2) companion 策略在手表走远 / 摘下后是否变为 false（每 2 秒一行，带着手表走出蓝牙范围再回来）
+swift -e 'import LocalAuthentication; import Foundation; for _ in 0..<60 { var e: NSError?; let ok = LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithCompanion, error: &e); print(Date(), ok, e?.code as Any); Thread.sleep(forTimeInterval: 2) }'
+
+# 3) App Nap：运行 WatchLock，活动监视器 → 能耗 → 「App Nap」列应为「否」；并核对没有阻止睡眠的断言
+pmset -g assertions | grep -i watchlock
+```
+
+第 3 项预期 `pmset` 里**没有** WatchLock 的 `PreventUserIdleSystemSleep`（`.userInitiatedAllowingIdleSystemSleep` 已实测不产生该断言）。第 2 项若走远后仍为 true，则 companion 策略不能作为「手表离开」的信号，保持现状只用于前置条件提示。
+
+**会议 / 演示豁免与重新布防**（接口已实测，具体软件覆盖面与时序未验证）：
+
+```bash
+# 4) 开一场真实会议或全屏演示，观察是否出现 PreventUserIdleDisplaySleep 及持有者进程名
+#    （不同软件可能只在共享屏幕 / 播放视频时才持有）。逐个软件记录结果，别外推。
+pmset -g assertions | grep -B1 -A2 PreventUserIdleDisplaySleep
+
+# 5) 重新布防：设置里开启「手动解锁后手表仍在远处时重新锁定」，把手表放远 → 等自动锁 →
+#    用密码手动解锁 → 保持键鼠不动，空闲满设定时间后应再次锁屏；诊断页应有「已布防」日志。
+```
+
+另外两项需要真机确认：手动输密码解锁时 `com.apple.screenIsUnlocked` 是否按预期触发（重新布防依赖它）；暂缓期间合盖 / 睡眠后唤醒，不应补锁（睡眠会取消待处理动作）。
+
 ### GitHub Actions 发布
 
 流水线：`.github/workflows/release.yml`，构建脚本：`Scripts/build-dmg.sh`。

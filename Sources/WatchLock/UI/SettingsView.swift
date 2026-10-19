@@ -202,6 +202,31 @@ private struct GeneralPage: View {
                 }
             }
 
+            Section {
+                Toggle("会议 / 演示期间暂缓锁定", isOn: $settings.meetingExemptionEnabled)
+                    .help("有应用阻止显示器睡眠（视频会议、全屏演示等）时，先不锁屏，结束后补锁")
+                if settings.meetingExemptionEnabled {
+                    Stepper("最长暂缓 \(settings.meetingMaxDeferralMinutes) 分钟，到点必锁",
+                            value: $settings.meetingMaxDeferralMinutes,
+                            in: SettingsStore.Defaults.meetingMaxDeferralRange, step: 5)
+                        .help("硬上限：即使会议仍在进行也会锁定，避免锁屏长期失效")
+                }
+                Toggle("手动解锁后手表仍在远处时重新锁定", isOn: $settings.rearmAfterManualUnlock)
+                    .help("例如手表在充电时你用密码解锁；键鼠空闲后会再锁一次")
+                if settings.rearmAfterManualUnlock {
+                    Stepper("键鼠空闲 \(settings.rearmIdleMinutes) 分钟后重新锁定",
+                            value: $settings.rearmIdleMinutes,
+                            in: SettingsStore.Defaults.rearmIdleRange)
+                        .help("按键鼠空闲计时，不会在你正在操作时突然锁屏")
+                }
+                Text(exceptionsHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text("自动锁定的例外")
+            }
+
             Section("其他") {
                 Toggle("菜单栏图标旁显示状态文字", isOn: $settings.showRSSIInMenuBar)
                     .help("默认只显示图标；开启后在图标旁追加「已解锁 / 已锁定 / 暂停」等文字")
@@ -235,6 +260,13 @@ private struct GeneralPage: View {
         )
         .font(WLFont.caption)
         .foregroundStyle(available ? WLColor.neutral : WLColor.danger)
+    }
+
+    /// 例外项会让「该锁没锁」，把代价写清楚；两项都默认关闭。
+    private var exceptionsHint: String {
+        "两项默认关闭，开启后在对应场景下会推迟锁屏，请自行权衡。" +
+        "「会议」依据是应用持有阻止显示器睡眠的系统断言，具体软件是否都会持有尚未逐一验证；" +
+        "用户主动运行的 caffeinate 不计入。"
     }
 
     private var thresholdHint: String {

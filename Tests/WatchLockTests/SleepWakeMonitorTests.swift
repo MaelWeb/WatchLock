@@ -6,13 +6,18 @@ final class SleepWakeMonitorTests: XCTestCase {
     private var workspace: NotificationCenter!
     private var distributed: NotificationCenter!
     private var monitor: SleepWakeMonitor!
+    /// 注入的会话锁定探针结果；默认 nil，让既有测试不受真实系统状态影响。
+    private var probeResult: Bool?
     private let locked = Notification.Name("com.apple.screenIsLocked")
     private let unlocked = Notification.Name("com.apple.screenIsUnlocked")
 
     override func setUpWithError() throws {
         workspace = NotificationCenter()
         distributed = NotificationCenter()
-        monitor = SleepWakeMonitor(workspace: workspace, distributed: distributed)
+        probeResult = nil
+        monitor = SleepWakeMonitor(workspace: workspace, distributed: distributed, sessionLockProbe: { [unowned self] in
+            self.probeResult
+        })
         monitor.start()
     }
 
@@ -109,5 +114,69 @@ final class SleepWakeMonitorTests: XCTestCase {
         post(locked, to: distributed)
         XCTAssertEqual(wakeCount, 2)
         XCTAssertEqual(lockCount, 2)
+    }
+
+    // MARK: - 会话锁定状态校正
+
+    func testRefreshCorrectsStuckLockedStateWhenUnlockNotificationWasMissed() {
+        var unlockCount = 0
+        monitor.onScreenUnlocked = { unlockCount += 1 }
+        post(locked, to: distributed)
+        XCTAssertTrue(monitor.isScreenLocked)
+        probeResult = false
+        XCTAssertFalse(monitor.refreshSessionLockState())
+        XCTAssertFalse(monitor.isScreenLocked)
+        XCTAssertEqual(unlockCount, 1)
+    }
+
+    func testRefreshCorrectsMissedLockNotification() {
+        var lockCount = 0
+        monitor.onScreenLocked = { lockCount += 1 }
+        probeResult = true
+        XCTAssertTrue(monitor.refreshSessionLockState())
+        XCTAssertEqual(lockCount, 1)
+    }
+
+    func testRefreshKeepsStateWhenProbeCannotAnswer() {
+        post(locked, to: distributed)
+        probeResult = nil
+        XCTAssertTrue(monitor.refreshSessionLockState())
+        XCTAssertTrue(monitor.isScreenLocked)
+    }
+
+    func testRefreshDoesNotFireCallbacksWhenStateAgrees() {
+        var calls = 0
+        monitor.onScreenLocked = { calls += 1 }
+        monitor.onScreenUnlocked = { calls += 1 }
+        post(locked, to: distributed)
+        calls = 0
+        probeResult = true
+        monitor.refreshSessionLockState()
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testSystemWakeResyncsSessionLockState() {
+        post(locked, to: distributed)
+        post(NSWorkspace.willSleepNotification, to: workspace)
+        probeResult = false
+        post(NSWorkspace.didWakeNotification, to: workspace)
+        XCTAssertFalse(monitor.isScreenLocked)
+    }
+
+    func testStartSyncsInitialSessionLockState() {
+        let center = NotificationCenter()
+        let fresh = SleepWakeMonitor(workspace: center, distributed: center, sessionLockProbe: { true })
+        fresh.start()
+        XCTAssertTrue(fresh.isScreenLocked)
+        fresh.stop()
+    }
+
+    func testSessionLockProbeInterpretsDictionary() {
+        XCTAssertFalse(SessionLockProbe.isLocked(in: [:]))
+        XCTAssertFalse(SessionLockProbe.isLocked(in: ["kCGSessionLoginDoneKey": 1]))
+        XCTAssertTrue(SessionLockProbe.isLocked(in: [SessionLockProbe.lockedKey: true]))
+        XCTAssertTrue(SessionLockProbe.isLocked(in: [SessionLockProbe.lockedKey: 1]))
+        XCTAssertFalse(SessionLockProbe.isLocked(in: [SessionLockProbe.lockedKey: 0]))
+        XCTAssertTrue(SessionLockProbe.isLocked(in: [SessionLockProbe.lockedKey: "yes"]))
     }
 }

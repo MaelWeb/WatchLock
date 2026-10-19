@@ -35,7 +35,7 @@
 1. ~~**实测 RSSI 分布**~~ **已确认（2026-10-15 本机真机抓包，见 §7）**：手表贴近 Mac 时 RSSI 约 **-42 dBm**，远强于此前估计的 -70 ~ -85；默认「已离开」阈值 -70 **不至于**因阈值误锁。
 2. ~~**Continuity 广播类型值**~~ **已部分确认（§7）**：手表与 iPhone 的 Continuity 类型**同为 0x10**，只靠类型字节**无法**区分手表；声明长度会随设备/状态变化，因此指纹只取类型字节，不再纳入长度。仍需更多样本才能固化「哪些类型算手表在场」，在此之前不写入任何类型语义常量。
 3. **identifier 变化频率**：证据 1 是 iOS 27 的表现，macOS 上的频率未知，需观察日志里「手表蓝牙地址已轮换」的出现次数。
-4. **Nearby Interaction / UWB**：Apple 官方的高精度测距框架，但仅 iOS/watchOS 可用、且要求配件端支持 UWB，Mac 无 UWB 芯片 → **不适用于本项目**。
+4. **Nearby Interaction / UWB**：Apple 官方的高精度测距框架。2026-10-19 复核更正：框架概述页标注 macOS 11.0+，但 `NISession` 类页的平台列表（来自搜索摘要，页面本身无法抓取）不含 macOS，两处标注不一致，**不能**再写成「仅 iOS/watchOS 可用」。结论仍为**不适用**，理由改为：交互需要两端设备都运行同一 App 并交换 discovery token，手表端要有配套 App（ADR-07 已决定本期不做），且需要双方具备 UWB 硬件；并非平台限制。待在浏览器复核两处平台标注。
 
 ## 5. 真机抓包记录（2026-10-15，本机）
 
@@ -64,6 +64,40 @@
 | 单元测试 | 10 例：解析、截断、指纹稳定性、非 Apple 数据、日志截断、指纹校验的三条路径 |
 
 **下一步依赖真机数据**：请在手表就在旁边时打开「广播抓包」，复制内容发我；我会据此固化「哪些 Continuity 类型算手表在场」，把识别从「名称启发式」升级为「广播类型规则」。
+
+## 6.1 外围探测复检（2026-10-19）
+
+对「靠近 / 锁定」链路周边的系统探测做了一轮官方文档 + 本机（macOS 26.6.1）只读验证，结论如下：
+
+| # | 发现 | 依据 | 处置 |
+| --- | --- | --- | --- |
+| 1 | 旧前置条件探测读 `com.apple.screensaver askForPassword`，在新系统上读不到 | 本机 `defaults read com.apple.screensaver` 仅有 `tokenRemovalAction`；社区报告 Sequoia 起该设置改由系统设置接管；`sysadminctl -screenLock status` 返回 `screenLock delay is immediate` | 改读 `sysadminctl`；输出文案取自其二进制字符串；无法识别时不判缺失 |
+| 2 | 旧「手表已配对」探测靠 `system_profiler` 文本匹配 | 本机该条目在 `Not Connected` 分区，不代表在场；调用同步、结果永久缓存 | 改用 `LAContext.canEvaluatePolicy(.deviceOwnerAuthenticationWithCompanion)`（macOS 15+，官方文档：找不到附近已配对设备返回 `LAErrorCompanionNotAvailable`；macOS 14 用 `...WithWatch`）。不弹界面，本机耗时 1–8ms |
+| 3 | 会话锁定只靠非公开通知，漏一次「解锁」会一直跳过自动锁定 | 这是代码走查推断，**未复现**。`CGSessionCopyCurrentDictionary` 公开；`CGSSessionScreenIsLocked` 键未文档化，但存在于 `loginwindow` 二进制字符串中，本机解锁态下字典无此键 | 启动、唤醒、锁定前、自动解锁前用它校正；查询不到时不改状态 |
+| 4 | 无 App Nap 防护 | Apple《Energy Efficiency Guide》：非前台、无窗口更新、无断言的应用是 App Nap 候选；用户发起的活动不会被 App Nap | 监听期间持有 `userInitiatedAllowingIdleSystemSleep` 活动。实测该选项不产生电源断言、`.userInitiated` 会产生 |
+
+**待真机验证**（未做，不得当作结论）：
+- `CGSSessionScreenIsLocked` 在**锁屏状态**下的取值；
+- companion 策略在手表**走远 / 摘下**后是否变为不可用（本机只在手表就在旁边时观察到 true，所以它能否作为「在场」第二信号尚无证据，**未接入锁屏逻辑**）；
+- 应用在没有 App Nap 防护时是否真的被限速（文档称 XPC 消息可使应用退出 App Nap，CoreBluetooth 走 XPC，影响可能小于预期）。
+
+**已查但不采用**：Shortcuts「锁定屏幕」动作（`shortcuts run` 存在，但未找到 Apple 文档、本机也未核实动作存在）；Nearby Info 动作码 `0x0A Watch on wrist and unlocked`（来源为 iOS 10–12 时代逆向资料，页面未写半字节顺序，且与 §5 本机抓包的 `0x27` 对不上，不能落地）。
+
+## 6.2 会议 / 演示豁免与解锁后重新布防的系统接口（2026-10-19）
+
+均为本机（macOS 26.6.1）实测，结论只覆盖下列范围：
+
+| 事项 | 实测结果 | 影响 |
+| --- | --- | --- |
+| `IOPMCopyAssertionsByProcess` 返回结构 | `[pid: [断言字典]]`，键含 `AssertType`、`AssertionTrueType`、`AssertLevel`（255 = 开）、`Process Name`、`AssertName`；类型常量 `PreventUserIdleDisplaySleep` 与 SDK 头文件 `IOPMLib.h` 一致 | 以此判定「有应用阻止显示器睡眠」 |
+| 哪些命令产生该断言 | `caffeinate -d` 产生；`-i`、`-u` 不产生；`powerd` 常驻持有的是 `InternalPreventDisplaySleep`（类型不同） | 不会被系统自身误判；`caffeinate` 需显式忽略（用户主动保持唤醒） |
+| 旧版 `NoDisplaySleepAssertion` | `AssertType` 保持原值，`AssertionTrueType` 归一为 `PreventUserIdleDisplaySleep` | 判定优先读 `AssertionTrueType` |
+| **沙箱内是否可读** | 用与发布包相同 entitlements 签名的 `.app` 能读到他进程断言。**注意**：同样签名的裸命令行程序会以 133 退出，连 `print("hello")` 都不行，那不是沙箱拦截而是形态问题，不能据此下结论 | 发布形态下可行 |
+| `CGEventSource.secondsSinceLastEventType(.combinedSessionState, …)` | 沙箱 `.app` 内可用，随时间递增 | 作为「键鼠空闲」判据 |
+
+**未验证**：Zoom / Teams / Keynote / 浏览器会议等具体软件是否都持有该断言——只验证了接口和 `caffeinate`，没有在真实会议里观察；部分软件可能只在共享屏幕或播放视频时才持有。因此该选项默认关闭，并在设置页写明。
+
+**设计取舍**：豁免有硬上限（默认 60 分钟，最大 240），到点无论如何都锁；查不到断言表时按「没有持有者」处理（照常锁屏）；不采用摄像头 / 麦克风占用判断（需要额外权限、隐私面更大）。重新布防用键鼠空闲而非固定延时，避免在用户操作中突然锁屏。
 
 ## 7. 参考文献
 
