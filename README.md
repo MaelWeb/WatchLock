@@ -115,7 +115,7 @@
 
 **锁屏为什么走「模拟 ⌃⌘Q」？**
 
-macOS 没有开放给第三方的公开锁屏 API。默认用模拟系统快捷键，等效于手动锁屏；需要辅助功能授权。若不想授权，可在「设置 → 通用 → 锁定方式」选「系统接口（免授权）」，它调用系统自带「锁定屏幕」所用的内部接口（`SACLockScreenImmediate`）。该接口未公开，系统升级后可能失效，届时应用会通知你回退到 ⌃⌘Q 或「仅关闭显示器」。也可直接用「仅关闭显示器」或自定义命令。
+macOS 没有开放给第三方的公开锁屏 API。默认用模拟系统快捷键，等效于手动锁屏；需要辅助功能授权。若不想授权，可在「设置 → 通用 → 锁定方式」选「系统接口（免授权）」，它调用系统自带「锁定屏幕」所用的内部接口。该接口未公开，系统升级后可能失效，届时应用会通知你回退到 ⌃⌘Q 或「仅关闭显示器」。也可直接用「仅关闭显示器」或自定义命令。
 
 **数据安全吗？会不会上传我的位置？**
 
@@ -123,11 +123,11 @@ macOS 没有开放给第三方的公开锁屏 API。默认用模拟系统快捷�
 
 ## 获取方式
 
-当前**仅通过 [GitHub Release](https://github.com/MaelWeb/WatchLock/releases) 分发，不发布到 App Store**。维护者可在 GitHub Actions 选择 `patch / minor / major`，自动递增版本、创建标签并发布通用 DMG（Apple Silicon + Intel，macOS 14+），同时提供 `.dmg.sha256` 校验文件；也保留已有版本标签触发发布及 `build-only` 仅打包模式。
+当前**仅通过 [GitHub Release](https://github.com/MaelWeb/WatchLock/releases) 分发，不发布到 App Store**，提供同时支持 Apple Silicon 与 Intel 的通用 DMG（macOS 14+），并附带 `.dmg.sha256` 校验文件。
 
-下载 DMG，打开后将 `WatchLock.app` 拖入 `Applications`。当前包使用 ad-hoc 签名，**未做 Developer ID 签名或 Apple 公证**，macOS 可能阻止首次打开；确认下载来源及 SHA-256 后，按系统提示在「系统设置 → 隐私与安全性」选择「仍要打开」。受管理设备的安全策略可能禁止运行，升级后蓝牙或辅助功能权限可能需要重新授予。
+下载 DMG，打开后将 `WatchLock.app` 拖入 `Applications`。当前包使用 ad-hoc 签名，**未做 Developer ID 签名或 Apple 公证**，macOS 可能阻止首次打开；确认下载来源并核对 SHA-256 后，按系统提示在「系统设置 → 隐私与安全性」选择「仍要打开」。受管理设备的安全策略可能禁止运行，升级后蓝牙或辅助功能权限可能需要重新授予。
 
-源码构建及流水线使用说明见 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+想自己编译或参与开发，见 [DEVELOPMENT.md](./DEVELOPMENT.md)。
 
 ## 已知限制
 
@@ -152,9 +152,7 @@ WatchLock 源码公开，采用 **PolyForm Noncommercial 1.0.0** 许可（见 [L
 | 修改源码、分发副本 | ✅（须保留许可与版权声明） | — |
 | **任何商业用途**（含公司内部使用、商业产品集成、付费分发） | — | ✅ 需另行获得书面授权 |
 
-之所以开源：一款替你锁屏的工具，理应能被你逐行检查。它声称「平时不联网、不碰密码、不采集数据」，代码就是这份声明的凭据。
+商业授权与咨询请联系：mael.liang@live.com
 
-商业授权与咨询请联系：<待填写邮箱>。
-
-- 反馈问题、提交改进：欢迎 issue 与 PR（贡献即以相同许可授权）。
+- 反馈问题、提出建议：欢迎 issue；参与开发与提交 PR 见 [DEVELOPMENT.md](./DEVELOPMENT.md)（贡献即以相同许可授权）。
 - Apple、Apple Watch、macOS 为 Apple Inc. 的商标，本项目与其无任何隶属或合作关系；「使用 Apple Watch 解锁」是 macOS 的系统能力，非本项目提供。
