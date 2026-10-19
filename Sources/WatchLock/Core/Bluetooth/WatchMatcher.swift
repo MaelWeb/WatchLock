@@ -42,23 +42,23 @@ enum WatchMatcher {
         var isStrong = false
 
         if let boundIdentifier, boundIdentifier == peripheralIdentifier {
-            reasons.insert("已绑定设备")
+            reasons.insert(String(localized: "已绑定设备"))
             isStrong = true
         }
 
         if let name {
             let lowered = Self.normalized(name)
             if lowered.contains("apple watch") {
-                reasons.insert("名称匹配 Apple Watch")
+                reasons.insert(String(localized: "名称匹配 Apple Watch"))
                 isStrong = true
             } else if lowered.contains("watch") {
-                reasons.insert("名称包含 watch")
+                reasons.insert(String(localized: "名称包含 watch"))
             }
         }
 
         let matchedServices = Set(serviceUUIDs).intersection(appleRelatedServiceUUIDs)
         if !matchedServices.isEmpty {
-            reasons.insert("命中 Apple 服务 UUID")
+            reasons.insert(String(localized: "命中 Apple 服务 UUID"))
             isStrong = true
         }
 
@@ -66,11 +66,11 @@ enum WatchMatcher {
         // 因此只作为弱证据。但解析出 Continuity 类型字节后，至少能把「Broadcast 类型」记录下来，
         // 供真机抓包固化识别规则（`docs/anti-false-lock-research.md` §4）。
         if let payload = AppleAdvertisement.parse(manufacturerData) {
-            var text = "Apple Continuity 广播（类型 \(payload.typeHex)，声明 \(payload.declaredLength) 字节"
-            if !payload.isComplete { text += "，实际 \(payload.body.count) 字节" }
+            var text = String(localized: "Apple Continuity 广播（类型 \(payload.typeHex)，声明 \(payload.declaredLength) 字节")
+            if !payload.isComplete { text += String(localized: "，实际 \(payload.body.count) 字节") }
             reasons.insert(text + "）")
         } else if AppleAdvertisement.isApple(manufacturerData) {
-            reasons.insert("厂商数据为 Apple")
+            reasons.insert(String(localized: "厂商数据为 Apple"))
         }
 
         return Result(

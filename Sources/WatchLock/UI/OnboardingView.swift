@@ -27,9 +27,9 @@ struct OnboardingView: View {
 
         var title: String {
             switch self {
-            case .permission: return "授权"
-            case .device: return "绑定"
-            case .ready: return "就绪"
+            case .permission: return String(localized: "授权")
+            case .device: return String(localized: "绑定")
+            case .ready: return String(localized: "就绪")
             }
         }
     }
@@ -114,9 +114,9 @@ struct OnboardingView: View {
 
             DisclosureGroup("为什么需要蓝牙权限？") {
                 VStack(alignment: .leading, spacing: WLSpacing.xs) {
-                    permissionBullet("扫描 Apple Watch 的 BLE 广播，估算它与 Mac 的距离")
-                    permissionBullet("全部在本机计算，不联网、不上传任何数据")
-                    permissionBullet("只申请蓝牙访问，不涉及密码、文件或屏幕内容")
+                    permissionBullet(String(localized: "扫描 Apple Watch 的 BLE 广播，估算它与 Mac 的距离"))
+                    permissionBullet(String(localized: "全部在本机计算，仅在你点「检查更新」时联网，不上传任何数据"))
+                    permissionBullet(String(localized: "只申请蓝牙访问，不涉及密码、文件或屏幕内容"))
                 }
                 .font(.callout)
                 .padding(.vertical, WLSpacing.xs)
@@ -141,7 +141,7 @@ struct OnboardingView: View {
             Image(systemName: isReady ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(isReady ? WLColor.success : WLColor.warning)
                 .accessibilityHidden(true)
-            Text(isReady ? "蓝牙已就绪，扫描已开始" : bluetoothStatusText)
+            Text(isReady ? String(localized: "蓝牙已就绪，扫描已开始") : bluetoothStatusText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -150,13 +150,13 @@ struct OnboardingView: View {
 
     private var bluetoothStatusText: String {
         switch session.bluetoothState {
-        case .poweredOn: return "蓝牙已就绪，扫描已开始"
-        case .poweredOff: return "蓝牙已关闭，请在系统设置中开启"
-        case .unauthorized: return "尚未授予蓝牙权限，点击下方按钮前往系统设置"
-        case .unsupported: return "当前设备不支持低功耗蓝牙"
-        case .resetting: return "蓝牙模块正在重置，请稍候"
-        case .unknown: return "正在读取蓝牙状态…"
-        @unknown default: return "蓝牙状态未知"
+        case .poweredOn: return String(localized: "蓝牙已就绪，扫描已开始")
+        case .poweredOff: return String(localized: "蓝牙已关闭，请在系统设置中开启")
+        case .unauthorized: return String(localized: "尚未授予蓝牙权限，点击下方按钮前往系统设置")
+        case .unsupported: return String(localized: "当前设备不支持低功耗蓝牙")
+        case .resetting: return String(localized: "蓝牙模块正在重置，请稍候")
+        case .unknown: return String(localized: "正在读取蓝牙状态…")
+        @unknown default: return String(localized: "蓝牙状态未知")
         }
     }
 
@@ -164,7 +164,7 @@ struct OnboardingView: View {
     private var permissionPrimary: some View {
         let isReady = session.bluetoothState == .poweredOn
         return WLButton(
-            isReady ? "继续" : "打开「系统设置 → 隐私与安全性 → 蓝牙」",
+            isReady ? String(localized: "继续") : String(localized: "打开「系统设置 → 隐私与安全性 → 蓝牙」"),
             systemImage: isReady ? nil : "arrow.up.forward.app",
             role: .primary,
             width: 300
@@ -190,7 +190,7 @@ struct OnboardingView: View {
 
             if currentDevices.isEmpty {
                 EmptyStateView(
-                    title: "暂未发现候选设备",
+                    title: String(localized: "暂未发现候选设备"),
                     systemImage: "wave.3.right",
                     message: emptyHint
                 )
@@ -202,8 +202,8 @@ struct OnboardingView: View {
                             nearRSSI: settings.nearRSSI,
                             farRSSI: settings.farRSSI,
                             isBound: settings.boundWatchID == device.id.uuidString,
-                            actionTitle: settings.boundWatchID == device.id.uuidString ? "已绑定" : "选择",
-                            actionHelp: "绑定后按设备标识追踪，广播地址轮换时会自动续接"
+                            actionTitle: settings.boundWatchID == device.id.uuidString ? String(localized: "已绑定") : String(localized: "选择"),
+                            actionHelp: String(localized: "绑定后按设备标识追踪，广播地址轮换时会自动续接")
                         ) {
                             session.bind(watch: device)
                         }
@@ -220,7 +220,7 @@ struct OnboardingView: View {
             }
 
             HStack(spacing: WLSpacing.sm) {
-                Button(showAllDevices ? "隐藏广播详情" : "看不到设备？显示全部") {
+                Button(showAllDevices ? String(localized: "隐藏广播详情") : String(localized: "看不到设备？显示全部")) {
                     showAllDevices.toggle()
                 }
                 .buttonStyle(.borderless)
@@ -242,9 +242,9 @@ struct OnboardingView: View {
 
     private var emptyHint: String {
         guard session.bluetoothState == .poweredOn else {
-            return "蓝牙未就绪：\(session.bluetoothState.title)。请先回到上一步完成授权。"
+            return String(localized: "蓝牙未就绪：\(session.bluetoothState.title)。请先回到上一步完成授权。")
         }
-        return "请确认手表已解锁、蓝牙开启，并保持在 Mac 附近。可点下方「显示全部」确认扫描是否正常。"
+        return String(localized: "请确认手表已解锁、蓝牙开启，并保持在 Mac 附近。可点下方「显示全部」确认扫描是否正常。")
     }
 
     // MARK: - 步骤 3：就绪（不做非必要自定义）
@@ -283,7 +283,7 @@ struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: WLSpacing.sm)
-                WLButton("打开系统设置") {
+                WLButton(String(localized: "打开系统设置")) {
                     NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension")!)
                 }
             }
@@ -301,7 +301,7 @@ struct OnboardingView: View {
     private var footer: some View {
         HStack(spacing: WLSpacing.sm) {
             if step != .permission {
-                WLButton("上一步", width: 90) { back() }
+                WLButton(String(localized: "上一步"), width: 90) { back() }
             }
             // HIG：权限预说明屏不允许出现「跳过」等绕开授权的路径。
             if step == .device {
@@ -314,12 +314,12 @@ struct OnboardingView: View {
             case .permission:
                 permissionPrimary
             case .device:
-                WLButton("继续", role: .primary, isDisabled: settings.boundWatchID == nil, width: 110) {
+                WLButton(String(localized: "继续"), role: .primary, isDisabled: settings.boundWatchID == nil, width: 110) {
                     advance()
                 }
-                .help(settings.boundWatchID == nil ? "先绑定一台手表后继续" : "")
+                .help(settings.boundWatchID == nil ? String(localized: "先绑定一台手表后继续") : "")
             case .ready:
-                WLButton("开始使用", role: .primary, width: 110) { finish() }
+                WLButton(String(localized: "开始使用"), role: .primary, width: 110) { finish() }
                     .keyboardShortcut(.return, modifiers: [])
             }
         }
@@ -345,7 +345,7 @@ struct OnboardingView: View {
             .joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        DiagnosticsLog.shared.append(.info, "已复制 \(devices.count) 台设备的诊断信息")
+        DiagnosticsLog.shared.append(.info, String(localized: "已复制 \(devices.count) 台设备的诊断信息"))
     }
 }
 
@@ -362,7 +362,7 @@ enum OnboardingWindow {
             backing: .buffered,
             defer: false
         )
-        window.title = "WatchLock 设置向导"
+        window.title = String(localized: "WatchLock 设置向导")
         // 品牌区延伸到标题栏：隐藏标题文字并让标题栏透明（红绿灯仍保留，可随时关窗）。
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true

@@ -34,7 +34,7 @@ final class UnlockService {
         guard canHandleApproach else { return }
         guard cooldownElapsed(at: now) else {
             pendingApproachRetry = true
-            DiagnosticsLog.shared.append(.info, "靠近事件处于冷却期，等待新的近距离样本后重试一次")
+            DiagnosticsLog.shared.append(.info, String(localized: "靠近事件处于冷却期，等待新的近距离样本后重试一次"))
             return
         }
         pendingApproachRetry = !requestWake(now: now)
@@ -49,7 +49,7 @@ final class UnlockService {
         }
         guard cooldownElapsed(at: now) else { return }
         pendingApproachRetry = false
-        DiagnosticsLog.shared.append(.info, "手表仍在近距离，重试显示器唤醒请求")
+        DiagnosticsLog.shared.append(.info, String(localized: "手表仍在近距离，重试显示器唤醒请求"))
         _ = requestWake(now: now)
     }
 
@@ -85,10 +85,10 @@ final class UnlockService {
     func verifyAutoUnlockPrerequisites() {
         let missing = evaluatePrerequisites()
         guard !missing.isEmpty else { return }
-        DiagnosticsLog.shared.append(.warning, "自动解锁前置条件缺失：\(missing.joined(separator: "；"))")
+        DiagnosticsLog.shared.append(.warning, String(localized: "自动解锁前置条件缺失：\(missing.joined(separator: "；"))"))
         if settings.notificationsEnabled {
             NotificationPresenter.shared.notify(
-                title: "无法自动解锁",
+                title: String(localized: "无法自动解锁"),
                 body: missing.joined(separator: "；"),
                 reason: .autoUnlockMissing
             )
@@ -100,11 +100,11 @@ final class UnlockService {
         guard settings.unlockStrategy == .managedPassword, isScreenLocked() else { return }
         do {
             guard let password = try keychain.loadPassword(), !password.isEmpty else {
-                DiagnosticsLog.shared.append(.error, "钥匙串中没有可用的登录密码")
+                DiagnosticsLog.shared.append(.error, String(localized: "钥匙串中没有可用的登录密码"))
                 return
             }
             guard AccessibilityProbe.isTrusted(prompt: true) else {
-                DiagnosticsLog.shared.append(.error, "缺少辅助功能权限，无法模拟键入密码")
+                DiagnosticsLog.shared.append(.error, String(localized: "缺少辅助功能权限，无法模拟键入密码"))
                 return
             }
             let script = """
@@ -118,9 +118,9 @@ final class UnlockService {
             process.launchPath = "/usr/bin/osascript"
             process.arguments = ["-e", script]
             try process.run()
-            DiagnosticsLog.shared.append(.info, "已触发托管密码输入")
+            DiagnosticsLog.shared.append(.info, String(localized: "已触发托管密码输入"))
         } catch {
-            DiagnosticsLog.shared.append(.error, "托管密码输入失败：\(error.localizedDescription)")
+            DiagnosticsLog.shared.append(.error, String(localized: "托管密码输入失败：\(error.localizedDescription)"))
         }
     }
 

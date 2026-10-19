@@ -131,22 +131,22 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
             lastError = nil
             applyMode()
         case .poweredOff:
-            lastError = "蓝牙已关闭，请在系统设置中开启蓝牙"
+            lastError = String(localized: "蓝牙已关闭，请在系统设置中开启蓝牙")
             isScanning = false
         case .unauthorized:
-            lastError = "没有蓝牙权限，请在「系统设置 → 隐私与安全性 → 蓝牙」中授权"
+            lastError = String(localized: "没有蓝牙权限，请在「系统设置 → 隐私与安全性 → 蓝牙」中授权")
             isScanning = false
         case .unsupported:
-            lastError = "当前设备不支持低功耗蓝牙"
+            lastError = String(localized: "当前设备不支持低功耗蓝牙")
             isScanning = false
         case .resetting:
-            lastError = "蓝牙模块正在重置"
+            lastError = String(localized: "蓝牙模块正在重置")
             isScanning = false
         case .unknown:
             lastError = nil
             isScanning = false
         @unknown default:
-            lastError = "蓝牙状态未知"
+            lastError = String(localized: "蓝牙状态未知")
             isScanning = false
         }
     }

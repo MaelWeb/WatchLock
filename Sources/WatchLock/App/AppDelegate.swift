@@ -8,7 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let icon = BrandLogo.appIcon {
             NSApp.applicationIconImage = icon
         }
-        DiagnosticsLog.shared.append(.info, "应用启动")
+        DiagnosticsLog.shared.append(.info, String(localized: "应用启动"))
         Task { @MainActor in
             AppSession.shared.start()
             if !SettingsStore.shared.hasCompletedOnboarding {
@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             AppSession.shared.stop()
         }
-        DiagnosticsLog.shared.append(.info, "应用退出")
+        DiagnosticsLog.shared.append(.info, String(localized: "应用退出"))
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

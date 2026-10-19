@@ -13,20 +13,20 @@ enum UnlockStrategy: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .wakeOnly: return "仅唤醒屏幕"
-        case .systemAutoUnlock: return "系统自动解锁（推荐）"
-        case .managedPassword: return "托管密码自动输入（高风险）"
+        case .wakeOnly: return String(localized: "仅唤醒屏幕")
+        case .systemAutoUnlock: return String(localized: "系统自动解锁（推荐）")
+        case .managedPassword: return String(localized: "托管密码自动输入（高风险）")
         }
     }
 
     var detail: String {
         switch self {
         case .wakeOnly:
-            return "靠近时点亮显示器，后续解锁动作交给 macOS 原生流程（需要已开启「使用 Apple Watch 解锁」）。"
+            return String(localized: "靠近时点亮显示器，后续解锁动作交给 macOS 原生流程（需要已开启「使用 Apple Watch 解锁」）。")
         case .systemAutoUnlock:
-            return "在唤醒的基础上检查系统自动解锁前置条件，缺失时给出引导，不接触用户密码。"
+            return String(localized: "在唤醒的基础上检查系统自动解锁前置条件，缺失时给出引导，不接触用户密码。")
         case .managedPassword:
-            return "将登录密码存入钥匙串，靠近时通过辅助功能模拟键入完成解锁。需要辅助功能权限，存在密码泄漏风险，仅建议在个人设备上开启。"
+            return String(localized: "将登录密码存入钥匙串，靠近时通过辅助功能模拟键入完成解锁。需要辅助功能权限，存在密码泄漏风险，仅建议在个人设备上开启。")
         }
     }
 

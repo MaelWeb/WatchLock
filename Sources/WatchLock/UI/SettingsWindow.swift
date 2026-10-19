@@ -22,7 +22,7 @@ enum SettingsWindow {
             backing: .buffered,
             defer: false
         )
-        window.title = "WatchLock 设置"
+        window.title = String(localized: "WatchLock 设置")
         // 去掉原生标题栏条：隐藏标题文字、标题栏透明、不画标题栏底部分隔线；
         // 红绿灯仍保留并悬浮在内容之上。
         window.titleVisibility = .hidden

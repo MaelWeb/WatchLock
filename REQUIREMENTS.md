@@ -163,6 +163,7 @@ stateDiagram-v2
 | FR-15 | 本地化（简中 / 英文） | P2 | M4 |
 | FR-16 | 误锁反馈与自动调参 | P1 | M3 |
 | FR-17 | 调试用 RSSI 模拟（开发辅助） | P2 | M3 |
+| FR-18 | 手动检查更新 | P2 | M4 |
 
 ---
 
@@ -327,7 +328,18 @@ stateDiagram-v2
 
 ### FR-15 本地化（P2，M4）
 
-1. 简体中文、英文两套文案，随系统语言切换。
+1. 简体中文、英文两套文案，随系统语言切换（`Resources/Localization/{zh-Hans,en}.lproj`，由 `Scripts/build-app.sh` 复制进 App 包；`CFBundleLocalizations` 声明两种语言）。
+2. 源码里的中文字面量即键（开发语言 = 简中）；`Scripts/localization.py check` 用编译器 `-emit-localized-strings` 提取键并与英文译文逐条比对（缺失、多余都会失败），`sync` 重新生成简中恒等映射。
+3. 权限弹窗文案（`NSBluetoothAlwaysUsageDescription` 等）走 `InfoPlist.strings` 本地化。
+4. 帮助手册：`docs/help.md`（简中）、`docs/help.en.md`（英文），「设置 → 关于」的「帮助手册」按系统语言打开对应页面。
+5. 未验证：在两种系统语言下逐页目视核对布局（英文通常更长，可能有截断），需真机检查。
+
+### FR-18 手动检查更新（P2，M4）
+
+1. 「设置 → 关于」提供「检查更新」按钮，**只在点击时**向 `https://github.com/MaelWeb/WatchLock/releases/latest` 发一次请求，读取其跳转目标 `.../releases/tag/vX.Y.Z` 得到最新版本号（不走 api.github.com，没有匿名限流）；不做后台轮询，不带任何本机信息。
+2. 有新版本只提供「前往下载」打开 Releases 页面，**不自动下载、不自动安装**。
+3. 版本比较按数字逐段，忽略预发布后缀；任一侧无法解析时不提示更新。
+4. 沙箱构建需要 `com.apple.security.network.client`（已加入 entitlements）；默认不沙箱的构建不受影响。
 
 ---
 
@@ -335,7 +347,7 @@ stateDiagram-v2
 
 | 编号 | 类别 | 需求 |
 | --- | --- | --- |
-| NFR-01 | 安全 | 默认不收集/不上传任何数据；无网络能力；密码仅存钥匙串且 `WhenUnlockedThisDeviceOnly`；日志脱敏 |
+| NFR-01 | 安全 | 默认不收集/不上传任何数据；默认无网络，唯一例外是用户手动点击「检查更新」时的一次 GitHub 请求（FR-18 / ADR-13）；密码仅存钥匙串且 `WhenUnlockedThisDeviceOnly`；日志脱敏 |
 | NFR-02 | 可靠 | 蓝牙异常、权限缺失、命令执行失败均不崩溃；关键路径有日志 |
 | NFR-03 | 可维护 | 分层清晰（UI / Session / Core / Storage），核心状态机有单元测试 |
 | NFR-04 | 兼容 | macOS 14/15/26 三档验证；Apple Silicon 与 Intel 双架构 |
@@ -402,7 +414,7 @@ stateDiagram-v2
 | 通知 | 可选 | 锁定/异常提醒 | `NSUserNotificationUsageDescription` |
 | Apple Events | 可选（仅托管密码） | 模拟键入登录密码 | `NSAppleEventsUsageDescription` |
 | 辅助功能 | 使用「⌃⌘Q」锁屏（默认）或托管密码时必需 | System Events 模拟按键；缺失时锁定被拦截并通知用户，授权需用户手动勾选（分发包无法预授权，除非 MDM 下发 PPPC） | — |
-| 网络 | 无 | 应用不发起任何网络请求 | — |
+| 网络 | 仅手动检查更新 | 只在点击「检查更新」时向 GitHub 发一次请求，其余时间不发起任何网络请求 | — |
 
 ---
 
@@ -422,6 +434,7 @@ stateDiagram-v2
 | ADR-10 | 靠近时用公开用户活动断言请求亮屏，显示器 / 会话 / 整机睡眠独立跟踪 | 仅启动 caffeinate 并视为成功；锁屏时跳过唤醒 | 锁屏不能阻断亮屏；IOKit 返回码与 NSWorkspace 显示器通知分别记录请求结果和系统唤醒报告，避免把亮屏视为解锁；官方头文件及文档依据见 `DEVELOPMENT.md`，锁屏亮屏效果待真机验证 |
 | ADR-11 | 外围系统探测改用可验证来源：锁屏延迟读 `sysadminctl -screenLock status`；手表认证条件用 `LAContext` companion 策略；会话锁定用 `CGSessionCopyCurrentDictionary` 校正通知状态；监听期间持有 `userInitiatedAllowingIdleSystemSleep` 活动 | 读 `defaults askForPassword`；`system_profiler` 文本匹配；仅信任私有通知；不做 App Nap 防护 | 旧探测在 macOS 26 上读不到键 / 匹配的是未连接条目，会误报「无法自动解锁」；探测无法识别时一律不报缺失。companion 策略**只用于前置条件提示，未接入锁屏判定**（走远后是否变为不可用无证据）。依据与实测见 `docs/anti-false-lock-research.md` §6.1 |
 | ADR-12 | 自动锁定增加「闸门」`LockGate`：会议 / 演示豁免（读电源断言，暂缓 + 硬上限）与手动解锁后重新布防（键鼠空闲判据），**两项都默认关闭**，纯逻辑与系统探针分离、时间与探针均可注入 | 默认开启豁免；固定延时重新布防；用窗口 / 摄像头 / 麦克风占用判断会议 | 豁免会让「该锁没锁」，必须 opt-in 并有硬上限；断言接口已在**沙箱 .app**（与发布包相同 entitlements）内实测可读他进程断言（裸命令行程序带沙箱会 133 退出，不能用于验证），摄像头 / 麦克风判断需要额外权限与更多隐私面，不采用；空闲判据避免在用户操作中突然锁屏。依据与实测见 `docs/anti-false-lock-research.md` §6.2 |
+| ADR-13 | 更新只做「手动检查 + 跳转下载页」：点击才发一次 GitHub 请求，不自动下载 / 安装；「零网络」改为「默认零网络，唯一例外是手动检查更新」并同步 README / 引导页 / 帮助手册 | Sparkle 式自动更新；后台定时检查；应用内替换自身 | 应用未做 Developer ID 签名 / 公证，原地替换会让蓝牙 / 辅助功能授权失效并可能被 Gatekeeper 拦截；自动更新需要常驻网络与更新签名密钥，与「一款替你锁屏的工具应能被逐行检查」的定位冲突。只读版本号的跳转目标不带任何本机信息 |
 
 ---
 
@@ -433,7 +446,7 @@ stateDiagram-v2
 | M2 | v0.2.0 | FR-05/09/10/12/13，补 `ProximityEngine` 单元测试 | 完整主流程可用 |
 | M3 | v0.3.0 | FR-14 校准向导、FR-16 误锁反馈与自动调参、FR-17 调试模拟、评估 watchOS 配套 App | 精度与体验优化（**已完成**） |
 | M3.5 | v0.4.0 | UI 重构与设计规范、品牌 logo 与图标、菜单栏五态图标、产品化 README、开源许可 | 对外发布前的体验与品牌打磨（**已完成**，当前阶段） |
-| M4 | v1.0.0 | GitHub Actions 通用 DMG 打包与 GitHub Release（流水线已实现）；FR-15 本地化、帮助手册；Developer ID 签名 / 公证为可选增强 | GitHub Release 对外发布（不发布 App Store） |
+| M4 | v1.0.0 | GitHub Actions 通用 DMG 打包与 GitHub Release（流水线已实现）；FR-15 本地化、帮助手册（已实现）、FR-18 手动检查更新（已实现）；Developer ID 签名 / 公证为可选增强 | GitHub Release 对外发布（不发布 App Store） |
 
 ### 13.1 当前代码与需求的对照
 
@@ -461,13 +474,13 @@ stateDiagram-v2
 | GitHub Release 发布链路 | 流水线已实现（手动选择 patch / minor / major 自动递增版本、打包后创建标签并在同一次运行发布；保留已有标签发布与 build-only 仅打包；重跑复用本次标签；默认 ad-hoc，首次云端执行待验证） | `.github/workflows/release.yml`、`Scripts/next-version.py`、`Scripts/build-app.sh`、`Scripts/build-dmg.sh` |
 | 发布版本测试 | 已实现（15 例，覆盖递增、数值排序、预发布过滤、初始版本及同一流水线重跑保护） | `Tests/ReleaseTests/test_next_version.py` |
 | 开源许可 | PolyForm Noncommercial 1.0.0（禁止商用） | `LICENSE` |
-| 单元测试 | 已实现（182 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为 / 前置条件探测 / 会话锁定校正 / 监听活动） | `Tests/WatchLockTests` |
+| 单元测试 | 已实现（189 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为 / 前置条件探测 / 会话锁定校正 / 监听活动） | `Tests/WatchLockTests` |
 
 ---
 
 ## 14. 测试与验收
 
-### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 182 例）
+### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 189 例）
 
 | 用例 | 输入 | 期望 |
 | --- | --- | --- |
@@ -561,3 +574,4 @@ stateDiagram-v2
 | v1.14 | 2026-10-19 | 按「查官方文档找更优方案」复检外围探测并落地 4 项（ADR-11，依据与本机实测见 `docs/anti-false-lock-research.md` §6.1）：①自动解锁前置条件改读 `sysadminctl -screenLock status`，旧 `askForPassword` 在 macOS 26.6.1 上读不到键；②「手表在场」提示改用 `LAContext` companion 策略（macOS 15+，14 用 `...WithWatch`），去掉同步 `system_profiler` 与永久缓存；③会话锁定状态在启动 / 唤醒 / 锁定前 / 自动解锁前用 `CGSessionCopyCurrentDictionary` 校正，防止漏收「解锁」通知后永久跳过自动锁定；④监听期间持有 `userInitiatedAllowingIdleSystemSleep` 活动防 App Nap（实测不产生电源断言）。更正调研文档中 Nearby Interaction「仅 iOS/watchOS」的表述。Swift 单测 134 → 152 例，`swift build` 无警告。**未做 / 待真机验证**：`CGSSessionScreenIsLocked` 在锁屏态的取值；companion 策略在手表走远后是否变不可用（故未接入锁屏判定）；无 App Nap 防护时是否真被限速；未生成安装包或提交 / 推送 |
 | v1.15 | 2026-10-19 | 补齐「已声明未兑现」的功能缺口（均为读代码发现，未在真机复现）：①**未绑定手表时不再接受任何真实设备样本**（此前放行所有强候选，邻居的 Apple 设备可驱动本机锁屏 / 亮屏；引导页允许「跳过」绑定，该状态可达），调试模拟信号例外，菜单栏提示去绑定；②**蓝牙不可用**（关闭 / 重置 / 无权限 / 不支持）期间暂停信号丢失结算并发 `bluetoothIssue` 通知，恢复后重置状态机并给宽限期（FR-09 声明但此前无任何发送点，会被误判为「信号丢失」锁屏且原因文案误导）；③菜单栏状态卡显示「上次锁定：时间 · 原因」（`lastLockReason` 此前只写不读），删除无读取方的 `secondsSinceLastBroadcast`；④README 更正：通知权限、去掉不存在的「信号曲线」。Swift 单测 152 → 162 例，`swift build` 无警告。新增 R-09（手动解锁后不重新布防）与 R-10（会议豁免）两项**待产品决策**，未实现。**行为变化**：蓝牙关闭不再导致锁屏——若安全优先的用户希望关蓝牙也锁，需另做选项；未在真机验证蓝牙关闭 / 恢复的实际表现；未生成安装包或提交 / 推送 |
 | v1.16 | 2026-10-19 | 落地 v1.15 遗留的两项待决策（ADR-12，R-09 / R-10 状态改为「已提供可选项」）：①**会议 / 演示豁免**：状态机判定离开时若有应用持有 `PreventUserIdleDisplaySleep` 断言则暂缓锁定并在菜单栏提示，结束后补锁，**硬上限**默认 60 分钟（5–240），忽略 `caffeinate` / `powerd`，查不到断言时照常锁；②**手动解锁后重新布防**：手动解锁时手表仍判定为离开，则键鼠空闲满 N 分钟（默认 5，1–60）后再锁，不计入误锁调参样本。**两项均默认关闭**，设置页「通用 → 自动锁定的例外」写明代价。系统接口已实测：`IOPMCopyAssertionsByProcess` 与 `CGEventSource` 空闲时长在**沙箱 .app**（与发布包同 entitlements）内可用；旧 `NoDisplaySleepAssertion` 以 `AssertionTrueType` 归一识别。Swift 单测 162 → 182 例，`swift build` 无警告。**未验证**：Zoom / Teams / Keynote / 浏览器会议等具体软件是否都持有该断言（只验证了接口与 `caffeinate`）；手动解锁通知在真机上的触发时序；重新布防在睡眠 / 合盖等场景的表现；未生成安装包或提交 / 推送 |
+| v1.17 | 2026-10-19 | ①**本地化（FR-15）**：简中 / 英文两套文案，约 420 条源码键，`Scripts/localization.py check` 以编译器提取的键对照英文译文（缺失 / 多余即失败），`build-app.sh` 复制 `.lproj`，权限弹窗文案走 `InfoPlist.strings`；②**帮助手册** `docs/help.md` / `docs/help.en.md`；③**手动检查更新（FR-18，ADR-13）**：点击才请求 `releases/latest` 的跳转目标取版本号，有新版只跳转下载页，沙箱 entitlements 加 `network.client`，「零网络」表述同步改为「默认零网络」；④**companion 策略调研（`docs/anti-false-lock-research.md` §6.3）**：本机 1 小时 40 分采样，用户已离开时多次为 true、在电脑前时为 false、且比蓝牙慢约 41 秒，**结论：不接入锁屏逻辑**，仅保留 ADR-11 的前置条件提示用途；触发原因因缺少受控动作未能区分；单测累计 189 例。**未验证**：两种系统语言下的逐页布局（英文更长）、`.app` 内语言切换的目视效果、检查更新对真实网络的行为（单测只覆盖解析与比较逻辑） |

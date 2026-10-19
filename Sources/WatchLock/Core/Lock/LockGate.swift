@@ -55,8 +55,8 @@ final class LockGate {
         guard isDeferring else { return nil }
         let names = Array(Set(currentHolders.map(\.processName))).sorted()
         return names.isEmpty
-            ? "会议 / 演示进行中，已暂缓锁定"
-            : "会议 / 演示进行中（\(names.prefix(2).joined(separator: "、"))），已暂缓锁定"
+            ? String(localized: "会议 / 演示进行中，已暂缓锁定")
+            : String(localized: "会议 / 演示进行中（\(names.prefix(2).joined(separator: "、"))），已暂缓锁定")
     }
 
     /// 状态机要求锁屏时调用。返回要立即执行的锁定；返回 `nil` 表示已暂缓。
@@ -79,11 +79,11 @@ final class LockGate {
             let wasDeferred = isDeferring
             clearDeferral()
             isRearmArmed = false
-            return Grant(reason: wasDeferred ? "\(reason)（会议 / 演示结束后）" : reason, isRearm: isRearm)
+            return Grant(reason: wasDeferred ? String(localized: "\(reason)（会议 / 演示结束后）") : reason, isRearm: isRearm)
         case .lockCapped:
             clearDeferral()
             isRearmArmed = false
-            return Grant(reason: "\(reason)（已暂缓满上限）", isRearm: isRearm)
+            return Grant(reason: String(localized: "\(reason)（已暂缓满上限）"), isRearm: isRearm)
         case .deferLock:
             currentHolders = list
             if deferredSince == nil {
@@ -92,7 +92,7 @@ final class LockGate {
                 deferredIsRearm = isRearm
                 DiagnosticsLog.shared.append(
                     .info,
-                    "检测到会议 / 演示（\(list.map(\.processName).joined(separator: "、"))），暂缓锁定：\(reason)"
+                    String(localized: "检测到会议 / 演示（\(list.map(\.processName).joined(separator: "、"))），暂缓锁定：\(reason)")
                 )
             }
             return nil
@@ -103,7 +103,7 @@ final class LockGate {
     func screenUnlocked(watchIsFar: Bool) {
         guard config().rearmEnabled, watchIsFar, !isRearmArmed else { return }
         isRearmArmed = true
-        DiagnosticsLog.shared.append(.info, "手动解锁时手表仍在远处，已布防：键鼠空闲后将再次锁定")
+        DiagnosticsLog.shared.append(.info, String(localized: "手动解锁时手表仍在远处，已布防：键鼠空闲后将再次锁定"))
     }
 
     /// 由 1 秒 housekeeping 驱动。返回要立即执行的锁定，`nil` 表示无事可做。
@@ -113,7 +113,7 @@ final class LockGate {
                 cancel()
                 return nil
             }
-            return evaluate(reason: deferredReason ?? "手表离开设定范围", isRearm: deferredIsRearm)
+            return evaluate(reason: deferredReason ?? String(localized: "手表离开设定范围"), isRearm: deferredIsRearm)
         }
 
         guard isRearmArmed else { return nil }
@@ -123,12 +123,12 @@ final class LockGate {
         }
         guard let idle = idleSeconds(), idle >= config().rearmIdle else { return nil }
         isRearmArmed = false
-        return evaluate(reason: "手动解锁后手表仍在远处，且键鼠已空闲", isRearm: true)
+        return evaluate(reason: String(localized: "手动解锁后手表仍在远处，且键鼠已空闲"), isRearm: true)
     }
 
     /// 手表回到身边、暂停 / 关闭、整机睡眠、会话已锁定等：放弃所有待处理动作。
     func cancel() {
-        if isDeferring { DiagnosticsLog.shared.append(.info, "取消暂缓的锁定") }
+        if isDeferring { DiagnosticsLog.shared.append(.info, String(localized: "取消暂缓的锁定")) }
         clearDeferral()
         isRearmArmed = false
     }

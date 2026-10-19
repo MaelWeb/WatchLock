@@ -10,9 +10,9 @@ final class KeychainStore {
         var errorDescription: String? {
             switch self {
             case .unexpectedStatus(let status):
-                return "钥匙串操作失败：\(SecCopyErrorMessageString(status, nil) as String? ?? "\(status)")"
+                return String(localized: "钥匙串操作失败：\(SecCopyErrorMessageString(status, nil) as String? ?? "\(status)")")
             case .invalidData:
-                return "钥匙串中的数据格式不正确"
+                return String(localized: "钥匙串中的数据格式不正确")
             }
         }
     }

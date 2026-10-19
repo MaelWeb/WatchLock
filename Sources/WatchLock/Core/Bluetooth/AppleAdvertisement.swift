@@ -63,7 +63,7 @@ enum AppleAdvertisement {
     static func hex(_ data: Data?, limit: Int = 16) -> String? {
         guard let data, !data.isEmpty else { return nil }
         let prefix = data.prefix(limit).map { String(format: "%02x", $0) }
-        let suffix = data.count > limit ? " …（共 \(data.count) 字节）" : ""
+        let suffix = data.count > limit ? String(localized: " …（共 \(data.count) 字节）") : ""
         return prefix.joined(separator: " ") + suffix
     }
 
@@ -71,9 +71,9 @@ enum AppleAdvertisement {
     static func describe(_ data: Data?) -> String? {
         guard let data else { return nil }
         guard let payload = parse(data) else {
-            return isApple(data) ? "Apple 厂商数据（\(hex(data) ?? "-")，结构不可解析）" : nil
+            return isApple(data) ? String(localized: "Apple 厂商数据（\(hex(data) ?? "-")，结构不可解析）") : nil
         }
-        let truncated = payload.isComplete ? "" : "，实际 \(payload.body.count) 字节（被系统截断）"
-        return "Apple Continuity 类型 \(payload.typeHex)，声明 \(payload.declaredLength) 字节\(truncated)：\(payload.bodyHex)"
+        let truncated = payload.isComplete ? "" : String(localized: "，实际 \(payload.body.count) 字节（被系统截断）")
+        return String(localized: "Apple Continuity 类型 \(payload.typeHex)，声明 \(payload.declaredLength) 字节\(truncated)：\(payload.bodyHex)")
     }
 }

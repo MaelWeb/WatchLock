@@ -30,7 +30,7 @@ struct StepIndicator: View {
                 }
                 .accessibilityElement()
                 .accessibilityLabel("第 \(index + 1) 步 \(title)")
-                .accessibilityValue(index == current ? "当前步骤" : (index < current ? "已完成" : "未开始"))
+                .accessibilityValue(index == current ? String(localized: "当前步骤") : (index < current ? String(localized: "已完成") : String(localized: "未开始")))
 
                 if index < titles.count - 1 {
                     Capsule(style: .continuous)
@@ -85,7 +85,7 @@ struct RadioCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
-        .accessibilityValue(isSelected ? "已选中" : "未选中")
+        .accessibilityValue(isSelected ? String(localized: "已选中") : String(localized: "未选中"))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

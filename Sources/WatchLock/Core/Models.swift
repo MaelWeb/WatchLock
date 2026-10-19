@@ -5,13 +5,13 @@ extension CBManagerState {
     /// 蓝牙状态的人可读描述（诊断界面用）。
     var title: String {
         switch self {
-        case .unknown: return "未知"
-        case .resetting: return "重置中"
-        case .unsupported: return "不支持"
-        case .unauthorized: return "未授权"
-        case .poweredOff: return "已关闭"
-        case .poweredOn: return "已开启"
-        @unknown default: return "未知"
+        case .unknown: return String(localized: "未知")
+        case .resetting: return String(localized: "重置中")
+        case .unsupported: return String(localized: "不支持")
+        case .unauthorized: return String(localized: "未授权")
+        case .poweredOff: return String(localized: "已关闭")
+        case .poweredOn: return String(localized: "已开启")
+        @unknown default: return String(localized: "未知")
         }
     }
 }
@@ -28,21 +28,21 @@ enum ProximityStatus: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .unknown: return "正在搜索手表…"
-        case .near: return "手表在身边"
-        case .far: return "手表已离开"
-        case .paused: return "已暂停自动锁定"
-        case .disabled: return "自动锁定已关闭"
+        case .unknown: return String(localized: "正在搜索手表…")
+        case .near: return String(localized: "手表在身边")
+        case .far: return String(localized: "手表已离开")
+        case .paused: return String(localized: "已暂停自动锁定")
+        case .disabled: return String(localized: "自动锁定已关闭")
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .unknown: return "搜索中"
-        case .near: return "已解锁"
-        case .far: return "已锁定"
-        case .paused: return "暂停"
-        case .disabled: return "关闭"
+        case .unknown: return String(localized: "搜索中")
+        case .near: return String(localized: "已解锁")
+        case .far: return String(localized: "已锁定")
+        case .paused: return String(localized: "暂停")
+        case .disabled: return String(localized: "关闭")
         }
     }
 }
@@ -61,7 +61,7 @@ struct DiscoveredWatch: Identifiable, Hashable {
     var manufacturerData: Data?
 
     var displayName: String {
-        name.isEmpty ? "未命名设备" : name
+        name.isEmpty ? String(localized: "未命名设备") : name
     }
 
     /// 广播内容摘要，供调试列表展示 / 复制诊断信息。
@@ -76,7 +76,7 @@ struct DiscoveredWatch: Identifiable, Hashable {
             parts.append("manu=\(manufacturerData.map { String(format: "%02x", $0) }.joined(separator: " "))")
         }
         if !matchReasons.isEmpty {
-            parts.append("命中=\(matchReasons.sorted().joined(separator: ","))")
+            parts.append(String(localized: "命中=\(matchReasons.sorted().joined(separator: ","))"))
         }
         return parts.joined(separator: "  ")
     }
@@ -102,7 +102,7 @@ extension DiscoveredWatch {
         where seen.insert(device.id).inserted {
             var copy = device
             if copy.matchReasons.isEmpty {
-                copy.matchReasons = ["靠近 Mac（按信号排序）"]
+                copy.matchReasons = [String(localized: "靠近 Mac（按信号排序）")]
             }
             result.append(copy)
         }

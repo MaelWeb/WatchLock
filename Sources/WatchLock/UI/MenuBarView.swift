@@ -61,9 +61,9 @@ struct MenuBarView: View {
                 Text(distanceText)
                     .font(WLFont.body.monospacedDigit())
             }
-            MetricRow(label: "最后更新", value: lastSeenText)
+            MetricRow(label: String(localized: "最后更新"), value: lastSeenText)
             if let reason = session.lastLockReason, let date = session.lastLockAt {
-                MetricRow(label: "上次锁定", value: LastLockSummary.text(reason: reason, at: date))
+                MetricRow(label: String(localized: "上次锁定"), value: LastLockSummary.text(reason: reason, at: date))
             }
         }
     }
@@ -75,14 +75,14 @@ struct MenuBarView: View {
         if let message = session.scannerMessage { return message }
         if let note = session.lockDeferralNote { return note }
         if settings.boundWatchID == nil, session.simulatedRSSI == nil {
-            return "尚未绑定手表，自动锁定暂不生效（设置 → 设备）"
+            return String(localized: "尚未绑定手表，自动锁定暂不生效（设置 → 设备）")
         }
         return nil
     }
 
     private var subtitle: String {
         if let name = settings.boundWatchName { return name }
-        return "尚未绑定手表"
+        return String(localized: "尚未绑定手表")
     }
 
     private var statusTint: Color {
@@ -97,20 +97,20 @@ struct MenuBarView: View {
     private var rssiText: String {
         session.smoothedRSSI < 0
             ? String(format: "%.0f dBm", session.smoothedRSSI)
-            : "无信号"
+            : String(localized: "无信号")
     }
 
     private var distanceText: String {
         session.estimatedDistance > 0
-            ? String(format: "约 %.1f 米", session.estimatedDistance)
-            : "距离未知"
+            ? String(format: String(localized: "约 %.1f 米"), session.estimatedDistance)
+            : String(localized: "距离未知")
     }
 
     private var lastSeenText: String {
         guard let date = session.lastSeen else { return "—" }
         let seconds = Int(Date().timeIntervalSince(date))
-        if seconds < 60 { return "\(seconds) 秒前" }
-        return "\(seconds / 60) 分钟前"
+        if seconds < 60 { return String(localized: "\(seconds) 秒前") }
+        return String(localized: "\(seconds / 60) 分钟前")
     }
 
     private func scannerWarning(_ message: String) -> some View {
@@ -188,9 +188,9 @@ struct MenuBarView: View {
     private var actions: some View {
         HStack(alignment: .center, spacing: WLSpacing.sm) {
             WLButton(
-                "立即锁定",
+                String(localized: "立即锁定"),
                 systemImage: "lock.fill",
-                help: settings.confirmBeforeLock ? "锁定前会先确认" : "点按后立即锁定屏幕（⌃⌘Q）"
+                help: settings.confirmBeforeLock ? String(localized: "锁定前会先确认") : String(localized: "点按后立即锁定屏幕（⌃⌘Q）")
             ) {
                 if settings.confirmBeforeLock {
                     confirmingLock = true
@@ -204,7 +204,7 @@ struct MenuBarView: View {
             Button {
                 SettingsWindow.present(session: session)
             } label: {
-                WLButtonLabel("设置…", systemImage: "gearshape")
+                WLButtonLabel(String(localized: "设置…"), systemImage: "gearshape")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity)
@@ -221,7 +221,7 @@ struct MenuBarView: View {
             Button("暂停 1 小时") { session.pause(minutes: 60) }
             Button("暂停 4 小时") { session.pause(minutes: 240) }
         } label: {
-            WLButtonLabel("暂停", systemImage: "pause.fill")
+            WLButtonLabel(String(localized: "暂停"), systemImage: "pause.fill")
         }
         .menuStyle(.button)
         .buttonStyle(.bordered)
@@ -281,7 +281,7 @@ struct MenuBarView: View {
             Spacer(minLength: WLSpacing.sm)
 
             if let rssi = session.simulatedRSSI {
-                Text(rssi == -127 ? "模拟：信号丢失" : "模拟：\(rssi) dBm")
+                Text(rssi == -127 ? String(localized: "模拟：信号丢失") : String(localized: "模拟：\(rssi) dBm"))
                     .font(WLFont.caption)
                     .foregroundStyle(WLColor.warning)
             }

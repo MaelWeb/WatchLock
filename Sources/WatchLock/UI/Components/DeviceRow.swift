@@ -7,7 +7,7 @@ struct DeviceRow: View {
     let farRSSI: Int
     /// 已绑定该设备时禁用操作按钮。
     var isBound = false
-    var actionTitle: String = "绑定"
+    var actionTitle: String = String(localized: "绑定")
     var actionHelp: String?
     let action: () -> Void
 
@@ -49,12 +49,12 @@ struct DeviceRow: View {
 
     private var subtitle: String {
         device.matchReasons.isEmpty
-            ? "未命中识别规则（可拿远 / 靠近观察信号变化辨认）"
+            ? String(localized: "未命中识别规则（可拿远 / 靠近观察信号变化辨认）")
             : device.matchReasons.sorted().joined(separator: " · ")
     }
 
     private var rssiText: String {
-        device.rssi >= 0 ? "信号未知" : "\(device.rssi) dBm"
+        device.rssi >= 0 ? String(localized: "信号未知") : "\(device.rssi) dBm"
     }
 }
 
@@ -69,7 +69,7 @@ struct ScannerStatusBar: View {
 
     var body: some View {
         HStack(spacing: WLSpacing.xs) {
-            Text(isScanning ? "扫描中" : "未扫描")
+            Text(isScanning ? String(localized: "扫描中") : String(localized: "未扫描"))
             separator
             Text("蓝牙：\(bluetoothTitle)")
             separator

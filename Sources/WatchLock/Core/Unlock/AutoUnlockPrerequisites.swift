@@ -36,9 +36,9 @@ enum CompanionAvailability: Equatable {
 
 /// 「系统自动解锁」的前置条件探测。
 enum AutoUnlockPrerequisites {
-    static let screenLockGuidance = "「系统设置 → 锁定屏幕」中未设为「立即」要求输入密码"
+    static let screenLockGuidance = String(localized: "「系统设置 → 锁定屏幕」中未设为「立即」要求输入密码")
     static let companionGuidance =
-        "系统未报告附近有可用于认证的 Apple Watch（请确认手表已解锁并佩戴，且已在「触控 ID 与密码」中开启「使用 Apple Watch 解锁」）"
+        String(localized: "系统未报告附近有可用于认证的 Apple Watch（请确认手表已解锁并佩戴，且已在「触控 ID 与密码」中开启「使用 Apple Watch 解锁」）")
 
     /// 纯函数：由探测结果得出缺失项。`unknown` 一律不报，宁可漏报也不误报。
     static func missing(lockDelay: ScreenLockDelay, companion: CompanionAvailability) -> [String] {
@@ -56,10 +56,10 @@ enum AutoUnlockPrerequisites {
         let delay = readLockDelay()
         let companion = readCompanionAvailability()
         if case .unavailable(let detail) = companion {
-            DiagnosticsLog.shared.append(.info, "Apple Watch 认证探测未通过（\(detail)）")
+            DiagnosticsLog.shared.append(.info, String(localized: "Apple Watch 认证探测未通过（\(detail)）"))
         }
         if delay == .unknown {
-            DiagnosticsLog.shared.append(.info, "无法识别系统锁屏延迟设置，跳过该项前置条件检查")
+            DiagnosticsLog.shared.append(.info, String(localized: "无法识别系统锁屏延迟设置，跳过该项前置条件检查"))
         }
         return missing(lockDelay: delay, companion: companion)
     }
@@ -75,7 +75,7 @@ enum AutoUnlockPrerequisites {
         let context = LAContext()
         var error: NSError?
         if context.canEvaluatePolicy(companionPolicy, error: &error) { return .available }
-        let detail = error.map { "\($0.domain)#\($0.code)" } ?? "未知错误"
+        let detail = error.map { "\($0.domain)#\($0.code)" } ?? String(localized: "未知错误")
         return .unavailable(detail)
     }
 

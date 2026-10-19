@@ -40,7 +40,7 @@ final class MonitoringActivity {
     func start() {
         guard token == nil else { return }
         token = begin(Self.options, Self.reason)
-        DiagnosticsLog.shared.append(.info, "已声明监听活动（避免 App Nap 限速）")
+        DiagnosticsLog.shared.append(.info, String(localized: "已声明监听活动（避免 App Nap 限速）"))
     }
 
     /// 幂等：未持有时无操作。
@@ -48,7 +48,7 @@ final class MonitoringActivity {
         guard let token else { return }
         end(token)
         self.token = nil
-        DiagnosticsLog.shared.append(.info, "已结束监听活动声明")
+        DiagnosticsLog.shared.append(.info, String(localized: "已结束监听活动声明"))
     }
 
     /// 按需求同步：需要时持有，不需要时释放。

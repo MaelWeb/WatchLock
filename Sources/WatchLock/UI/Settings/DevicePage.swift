@@ -38,12 +38,12 @@ struct DevicePage: View {
         VStack(alignment: .leading, spacing: WLSpacing.sm) {
             HStack(spacing: WLSpacing.sm) {
                 CardSectionHeader(
-                    title: "附近设备",
+                    title: String(localized: "附近设备"),
                     systemImage: "wave.3.right",
                     tint: Color.primary
                 )
                 Spacer(minLength: WLSpacing.sm)
-                WLButton("重新扫描", systemImage: "arrow.clockwise") { session.rescan() }
+                WLButton(String(localized: "重新扫描"), systemImage: "arrow.clockwise") { session.rescan() }
                     .help("重启蓝牙扫描，用于列表长时间为空时")
             }
             Text("按信号强度实时排序，最靠前的那台通常就是你的手表。")
@@ -66,11 +66,11 @@ struct DevicePage: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: WLSpacing.xxs) {
                 Text("已绑定").font(.caption).foregroundStyle(.secondary)
-                Text(settings.boundWatchName ?? "尚未绑定手表")
+                Text(settings.boundWatchName ?? String(localized: "尚未绑定手表"))
             }
             Spacer(minLength: WLSpacing.sm)
             if settings.boundWatchID != nil {
-                WLButton("解除绑定", systemImage: "trash", role: .danger) {
+                WLButton(String(localized: "解除绑定"), systemImage: "trash", role: .danger) {
                     confirmingUnbind = true
                 }
                 .help("解除后需要重新绑定才会继续自动锁定")
@@ -78,7 +78,7 @@ struct DevicePage: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .wlCard()
-        .confirmationDialog("解除与「\(settings.boundWatchName ?? "该设备")」的绑定？", isPresented: $confirmingUnbind) {
+        .confirmationDialog("解除与「\(settings.boundWatchName ?? String(localized: "该设备"))」的绑定？", isPresented: $confirmingUnbind) {
             Button("解除绑定", role: .destructive) { session.unbindWatch() }
             Button("取消", role: .cancel) {}
         } message: {
@@ -92,7 +92,7 @@ struct DevicePage: View {
     private var list: some View {
         if candidates.isEmpty {
             EmptyStateView(
-                title: "暂未发现候选设备",
+                title: String(localized: "暂未发现候选设备"),
                 systemImage: "wave.3.right",
                 message: emptyHint
             )
@@ -104,8 +104,8 @@ struct DevicePage: View {
                         nearRSSI: settings.nearRSSI,
                         farRSSI: settings.farRSSI,
                         isBound: settings.boundWatchID == device.id.uuidString,
-                        actionTitle: settings.boundWatchID == device.id.uuidString ? "已绑定" : "绑定",
-                        actionHelp: "绑定后按设备标识追踪，广播地址轮换时会自动续接"
+                        actionTitle: settings.boundWatchID == device.id.uuidString ? String(localized: "已绑定") : String(localized: "绑定"),
+                        actionHelp: String(localized: "绑定后按设备标识追踪，广播地址轮换时会自动续接")
                     ) {
                         session.bind(watch: device)
                     }
@@ -118,14 +118,14 @@ struct DevicePage: View {
     /// 让「空列表」自解释，避免用户不知道下一步该做什么。
     private var emptyHint: String {
         if session.bluetoothState != .poweredOn {
-            return "蓝牙未就绪（\(session.bluetoothState.title)）。若刚重新打包安装，macOS 可能按新应用重新要求蓝牙权限：系统设置 → 隐私与安全性 → 蓝牙。"
+            return String(localized: "蓝牙未就绪（\(session.bluetoothState.title)）。若刚重新打包安装，macOS 可能按新应用重新要求蓝牙权限：系统设置 → 隐私与安全性 → 蓝牙。")
         }
         if !session.scanner.isScanning {
-            return "当前未在扫描。请确认「通用」里自动锁定已开启且未暂停。"
+            return String(localized: "当前未在扫描。请确认「通用」里自动锁定已开启且未暂停。")
         }
         if session.scanner.discoveryCount == 0 {
-            return "暂未发现任何 BLE 广播。请确认手表在旁边、已解锁且蓝牙开启。"
+            return String(localized: "暂未发现任何 BLE 广播。请确认手表在旁边、已解锁且蓝牙开启。")
         }
-        return "已收到 \(session.scanner.discoveryCount) 条广播但没有可绑定设备，可到「诊断 → 广播抓包」复制内容排查。"
+        return String(localized: "已收到 \(session.scanner.discoveryCount) 条广播但没有可绑定设备，可到「诊断 → 广播抓包」复制内容排查。")
     }
 }

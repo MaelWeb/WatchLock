@@ -14,8 +14,8 @@ final class ProximityEngine {
 
         var title: String {
             switch self {
-            case .beyondThreshold: return "手表离开设定范围"
-            case .signalLost: return "超过设定时间未收到手表信号"
+            case .beyondThreshold: return String(localized: "手表离开设定范围")
+            case .signalLost: return String(localized: "超过设定时间未收到手表信号")
             }
         }
     }
@@ -139,7 +139,7 @@ final class ProximityEngine {
         if now.timeIntervalSince(last) >= timeout {
             if !signalLostReported {
                 signalLostReported = true
-                DiagnosticsLog.shared.append(.warning, "超过 \(Int(timeout)) 秒未收到手表信号")
+                DiagnosticsLog.shared.append(.warning, String(localized: "超过 \(Int(timeout)) 秒未收到手表信号"))
             }
             guard config.lockOnSignalLoss else { return }
             commit(.far, reason: .signalLost)
@@ -186,7 +186,7 @@ final class ProximityEngine {
         pendingSince = nil
         switch newStatus {
         case .near:
-            DiagnosticsLog.shared.append(.info, "手表进入近距离")
+            DiagnosticsLog.shared.append(.info, String(localized: "手表进入近距离"))
             onEvent?(.becameNear)
         case .far:
             DiagnosticsLog.shared.append(.info, reason.title)

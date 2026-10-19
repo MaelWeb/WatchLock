@@ -114,6 +114,13 @@ plutil -replace CFBundleVersion -string "$APP_BUILD_NUMBER" "$APP_DIR/Contents/I
 cp "$ENTITLEMENTS" "$APP_DIR/Contents/Resources/WatchLock.entitlements"
 cp "$ROOT_DIR/LICENSE" "$APP_DIR/Contents/Resources/LICENSE"
 
+# 本地化资源（FR-15）：每种语言一个 .lproj，含界面文案与 Info.plist 权限说明。
+# 文案由 Scripts/localization.py 校验；未提供译文的键回退为源码中的简体中文。
+for lproj in "$ROOT_DIR"/Resources/Localization/*.lproj; do
+  [[ -d "$lproj" ]] || continue
+  cp -R "$lproj" "$APP_DIR/Contents/Resources/"
+done
+
 # 品牌图标资源（由 Scripts/generate-icons.sh 生成，已入库）
 if [[ -f "$ROOT_DIR/Resources/AppIcon.icns" ]]; then
   cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"

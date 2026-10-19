@@ -95,13 +95,13 @@ final class AppSession: ObservableObject {
                 self.updateStatus(.unknown)
                 self.engine.start()
                 self.scanner.start()
-                DiagnosticsLog.shared.append(.info, "系统唤醒，进入宽限期并恢复扫描")
+                DiagnosticsLog.shared.append(.info, String(localized: "系统唤醒，进入宽限期并恢复扫描"))
             }
         }
         monitor.onSleep = { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                DiagnosticsLog.shared.append(.info, "系统进入睡眠，暂停蓝牙扫描")
+                DiagnosticsLog.shared.append(.info, String(localized: "系统进入睡眠，暂停蓝牙扫描"))
                 self.unlocker.cancelPendingApproach()
                 self.scanner.stop()
                 self.engine.stop()
@@ -137,7 +137,7 @@ final class AppSession: ObservableObject {
         scanner.start()
         startHousekeeping()
         NotificationPresenter.shared.requestAuthorizationIfNeeded()
-        DiagnosticsLog.shared.append(.info, "开始监听手表距离")
+        DiagnosticsLog.shared.append(.info, String(localized: "开始监听手表距离"))
         // 调试入口：WATCHLOCK_FAKE_RSSI=-80 ./WatchLock 可持续注入固定信号。
         if let raw = ProcessInfo.processInfo.environment["WATCHLOCK_FAKE_RSSI"],
            let rssi = Int(raw) {
@@ -178,7 +178,7 @@ final class AppSession: ObservableObject {
         engine.reset()
         engine.start()
         feedSimulated()
-        DiagnosticsLog.shared.append(.info, "开始模拟信号：\(rssi) dBm")
+        DiagnosticsLog.shared.append(.info, String(localized: "开始模拟信号：\(rssi) dBm"))
     }
 
     /// 停止注入，并把状态机恢复到「搜索中」。
@@ -190,7 +190,7 @@ final class AppSession: ObservableObject {
         engine.reset()
         engine.start()
         updateStatus(engine.status)
-        DiagnosticsLog.shared.append(.info, "停止模拟信号")
+        DiagnosticsLog.shared.append(.info, String(localized: "停止模拟信号"))
     }
 
     /// 模拟「手表离开后彻底失联」：停止注入且不再接收真实广播，用于验证 signalLostTimeout。
@@ -198,7 +198,7 @@ final class AppSession: ObservableObject {
         simulatedRSSI = -127
         simulationTimer?.invalidate()
         simulationTimer = nil
-        DiagnosticsLog.shared.append(.info, "模拟信号丢失（不再喂样本）")
+        DiagnosticsLog.shared.append(.info, String(localized: "模拟信号丢失（不再喂样本）"))
     }
 
     private func feedSimulated() {
@@ -266,7 +266,7 @@ final class AppSession: ObservableObject {
             return
         case .began:
             bluetoothOutageActive = true
-            DiagnosticsLog.shared.append(.warning, "蓝牙不可用（\(state.title)），暂停信号丢失结算")
+            DiagnosticsLog.shared.append(.warning, String(localized: "蓝牙不可用（\(state.title)），暂停信号丢失结算"))
             // 蓝牙不可用不等于手表离开：停掉状态机，避免约 20 秒后按「信号丢失」误锁。
             engine.stop()
             engine.reset()
@@ -274,7 +274,7 @@ final class AppSession: ObservableObject {
             if settings.isEnabled, !settings.isPaused { updateStatus(.unknown) }
             if settings.notificationsEnabled, settings.boundWatchID != nil, settings.isEnabled, !settings.isPaused {
                 NotificationPresenter.shared.notify(
-                    title: "蓝牙不可用",
+                    title: String(localized: "蓝牙不可用"),
                     body: BluetoothOutage.notificationBody(for: state),
                     reason: .bluetoothIssue
                 )
@@ -282,7 +282,7 @@ final class AppSession: ObservableObject {
         case .ended:
             bluetoothOutageActive = false
             wakeGraceUntil = Date().addingTimeInterval(settings.unlockGraceAfterWake)
-            DiagnosticsLog.shared.append(.info, "蓝牙已恢复，重置状态并进入宽限期")
+            DiagnosticsLog.shared.append(.info, String(localized: "蓝牙已恢复，重置状态并进入宽限期"))
             if isRunning, !monitor.isSystemSleeping { engine.start() }
         }
     }
@@ -308,7 +308,7 @@ final class AppSession: ObservableObject {
 
         // FR-06：暂停到期后自动恢复（UserDefaults 不会主动发出变更通知）。
         if status == .paused && !settings.isPaused {
-            DiagnosticsLog.shared.append(.info, "暂停已到期，自动恢复自动锁定")
+            DiagnosticsLog.shared.append(.info, String(localized: "暂停已到期，自动恢复自动锁定"))
             refreshConfig()
         }
 
@@ -320,7 +320,7 @@ final class AppSession: ObservableObject {
         scanner.prune(olderThan: candidateTTL)
         let removed = before - scanner.candidates.count
         if removed > 0 {
-            DiagnosticsLog.shared.append(.info, "清理 \(removed) 个长时间未出现的候选设备")
+            DiagnosticsLog.shared.append(.info, String(localized: "清理 \(removed) 个长时间未出现的候选设备"))
         }
     }
 
@@ -332,7 +332,7 @@ final class AppSession: ObservableObject {
         settings.boundWatchAdvertisement = AppleAdvertisement.parse(watch.manufacturerData)?.fingerprint
         scanner.boundIdentifier = watch.id
         engine.reset()
-        DiagnosticsLog.shared.append(.info, "已绑定手表：\(watch.displayName)")
+        DiagnosticsLog.shared.append(.info, String(localized: "已绑定手表：\(watch.displayName)"))
         startBindCalibration()
     }
 
@@ -351,8 +351,8 @@ final class AppSession: ObservableObject {
     private func startBindCalibration() {
         bindCalibrationSamples = []
         bindCalibrationDeadline = Date().addingTimeInterval(bindCalibrationWindow)
-        tuningMessage = "绑定后自动校准中：请让手表保持在身边约 10 秒"
-        DiagnosticsLog.shared.append(.info, "开始绑定后自动校准（10 秒）")
+        tuningMessage = String(localized: "绑定后自动校准中：请让手表保持在身边约 10 秒")
+        DiagnosticsLog.shared.append(.info, String(localized: "开始绑定后自动校准（10 秒）"))
     }
 
     private func collectBindCalibrationSample(rssi: Int, date: Date) {
@@ -373,8 +373,8 @@ final class AppSession: ObservableObject {
         bindCalibrationSamples = []
 
         guard samples.count >= bindCalibrationMinimumSamples else {
-            DiagnosticsLog.shared.append(.warning, "绑定后自动校准样本不足（\(samples.count) 个），保留原阈值")
-            tuningMessage = "自动校准样本不足，可在「高级 → 距离校准向导」手动校准"
+            DiagnosticsLog.shared.append(.warning, String(localized: "绑定后自动校准样本不足（\(samples.count) 个），保留原阈值"))
+            tuningMessage = String(localized: "自动校准样本不足，可在「高级 → 距离校准向导」手动校准")
             return
         }
 
@@ -389,7 +389,7 @@ final class AppSession: ObservableObject {
         settings.applyAutoCalibration(result)
         refreshConfig()
 
-        let message = "已按绑定时的信号自动校准：1 米标定 \(result.measuredPower)、在身边 \(result.nearRSSI)、已离开 \(result.farRSSI) dBm（\(samples.count) 个样本）"
+        let message = String(localized: "已按绑定时的信号自动校准：1 米标定 \(result.measuredPower)、在身边 \(result.nearRSSI)、已离开 \(result.farRSSI) dBm（\(samples.count) 个样本）")
         tuningMessage = message
         DiagnosticsLog.shared.append(.info, message)
     }
@@ -414,25 +414,25 @@ final class AppSession: ObservableObject {
 
     /// 菜单栏中的「立即锁定」。
     func lockNow() {
-        performLock(reason: "手动锁定", isAutomatic: false)
+        performLock(reason: String(localized: "手动锁定"), isAutomatic: false)
     }
 
     /// 用户反馈「刚才这次是误锁」，触发自动调参（M3）。
     func reportFalseLock(now: Date = Date()) {
         guard let last = lastAutoLockAt, now.timeIntervalSince(last) <= falseLockReportWindow else {
-            DiagnosticsLog.shared.append(.warning, "没有可反馈的自动锁定，忽略误锁反馈")
+            DiagnosticsLog.shared.append(.warning, String(localized: "没有可反馈的自动锁定，忽略误锁反馈"))
             return
         }
         guard let suggestion = settings.recordFalseLock() else {
-            tuningMessage = "已记录误锁反馈，当前误锁率未超阈值，暂不调整"
-            DiagnosticsLog.shared.append(.info, "记录误锁反馈（暂不调整阈值）")
+            tuningMessage = String(localized: "已记录误锁反馈，当前误锁率未超阈值，暂不调整")
+            DiagnosticsLog.shared.append(.info, String(localized: "记录误锁反馈（暂不调整阈值）"))
             return
         }
         let before = settings.currentFarThresholds
         settings.applyTuned(suggestion)
         refreshConfig()
-        tuningMessage = "已记录误锁反馈：已离开 \(before.farRSSI) → \(suggestion.farRSSI) dBm，等待 \(Int(before.farDwell)) → \(Int(suggestion.farDwell)) 秒"
-        DiagnosticsLog.shared.append(.info, "误锁反馈触发自动调参：\(tuningMessage ?? "")")
+        tuningMessage = String(localized: "已记录误锁反馈：已离开 \(before.farRSSI) → \(suggestion.farRSSI) dBm，等待 \(Int(before.farDwell)) → \(Int(suggestion.farDwell)) 秒")
+        DiagnosticsLog.shared.append(.info, String(localized: "误锁反馈触发自动调参：\(tuningMessage ?? "")"))
     }
 
     /// 恢复默认阈值并清空调参样本。
@@ -440,8 +440,8 @@ final class AppSession: ObservableObject {
         settings.resetTuningStats()
         settings.applyTuned(SettingsStore.defaultFarThresholds)
         refreshConfig()
-        tuningMessage = "已恢复默认阈值"
-        DiagnosticsLog.shared.append(.info, "恢复默认阈值并清空调参样本")
+        tuningMessage = String(localized: "已恢复默认阈值")
+        DiagnosticsLog.shared.append(.info, String(localized: "恢复默认阈值并清空调参样本"))
     }
 
     private let falseLockReportWindow: TimeInterval = 10 * 60
@@ -504,7 +504,7 @@ final class AppSession: ObservableObject {
         lastPresenceLogAt = now
         DiagnosticsLog.shared.append(
             .warning,
-            "收到手表广播但系统未提供有效信号强度（RSSI=127），已按「手表仍在场」处理，不会因此锁定"
+            String(localized: "收到手表广播但系统未提供有效信号强度（RSSI=127），已按「手表仍在场」处理，不会因此锁定")
         )
     }
 
@@ -530,7 +530,7 @@ final class AppSession: ObservableObject {
         settings.boundWatchName = device.name
         settings.boundWatchAdvertisement = AppleAdvertisement.parse(device.manufacturerData)?.fingerprint
         scanner.boundIdentifier = identifier
-        DiagnosticsLog.shared.append(.info, "手表蓝牙地址已轮换，自动续接绑定（\(device.displayName)）")
+        DiagnosticsLog.shared.append(.info, String(localized: "手表蓝牙地址已轮换，自动续接绑定（\(device.displayName)）"))
         return true
     }
 
@@ -553,26 +553,26 @@ final class AppSession: ObservableObject {
 
     private func performLock(reason: String, isAutomatic: Bool = true) {
         guard settings.isEnabled, !settings.isPaused else {
-            DiagnosticsLog.shared.append(.warning, "已暂停或已关闭，跳过锁定：\(reason)")
+            DiagnosticsLog.shared.append(.warning, String(localized: "已暂停或已关闭，跳过锁定：\(reason)"))
             return
         }
         guard Date() >= wakeGraceUntil else {
-            DiagnosticsLog.shared.append(.info, "处于唤醒宽限期，跳过锁定")
+            DiagnosticsLog.shared.append(.info, String(localized: "处于唤醒宽限期，跳过锁定"))
             return
         }
         guard !monitor.refreshSessionLockState() else {
-            DiagnosticsLog.shared.append(.info, "屏幕已锁定，跳过本次锁定")
+            DiagnosticsLog.shared.append(.info, String(localized: "屏幕已锁定，跳过本次锁定"))
             return
         }
         let locker = ScreenLocker(method: settings.lockMethod, customCommand: settings.customLockCommand)
-        let detail = String(format: "RSSI %.0f dBm，约 %.1f 米", smoothedRSSI, estimatedDistance)
-        DiagnosticsLog.shared.append(.info, "触发锁定：\(reason)（\(detail)）")
+        let detail = String(format: String(localized: "RSSI %.0f dBm，约 %.1f 米"), smoothedRSSI, estimatedDistance)
+        DiagnosticsLog.shared.append(.info, String(localized: "触发锁定：\(reason)（\(detail)）"))
         // 缺权限时锁屏一定会失败：直接告诉用户去哪授权，而不是只在诊断日志里留一行晦涩的报错。
         if let issue = locker.permissionIssue() {
-            DiagnosticsLog.shared.append(.error, "无法锁定：\(issue)")
+            DiagnosticsLog.shared.append(.error, String(localized: "无法锁定：\(issue)"))
             if settings.notificationsEnabled {
                 NotificationPresenter.shared.notify(
-                    title: "无法锁定 Mac",
+                    title: String(localized: "无法锁定 Mac"),
                     body: locker.permissionIssueNotificationBody,
                     reason: .lockBlocked
                 )
@@ -591,7 +591,7 @@ final class AppSession: ObservableObject {
         }
         if settings.notificationsEnabled {
             NotificationPresenter.shared.notify(
-                title: "已锁定 Mac",
+                title: String(localized: "已锁定 Mac"),
                 body: "\(reason)（\(detail)）",
                 reason: .locked
             )

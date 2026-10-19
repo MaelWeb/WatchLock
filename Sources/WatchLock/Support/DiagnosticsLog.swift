@@ -12,9 +12,9 @@ final class DiagnosticsLog: ObservableObject {
 
         var title: String {
             switch self {
-            case .info: return "信息"
-            case .warning: return "警告"
-            case .error: return "错误"
+            case .info: return String(localized: "信息")
+            case .warning: return String(localized: "警告")
+            case .error: return String(localized: "错误")
             }
         }
     }

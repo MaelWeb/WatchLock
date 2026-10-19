@@ -11,19 +11,19 @@ enum CalibrationTarget: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .atDesk: return "以当前位置为「在身边」基准"
-        case .oneMeter: return "标定 1 米处"
-        case .near: return "在此处算作「在身边」"
-        case .far: return "在此处算作「已离开」"
+        case .atDesk: return String(localized: "以当前位置为「在身边」基准")
+        case .oneMeter: return String(localized: "标定 1 米处")
+        case .near: return String(localized: "在此处算作「在身边」")
+        case .far: return String(localized: "在此处算作「已离开」")
         }
     }
 
     var guidance: String {
         switch self {
-        case .atDesk: return "按日常办公姿势坐好，点击后保持手表不动；结束后会自动生成在身边 / 已离开阈值。"
-        case .oneMeter: return "把手表放在离 Mac 约 1 米的位置，点击后保持不动。"
-        case .near: return "坐回正常办公位置，点击后保持不动。"
-        case .far: return "走到你希望自动锁屏的位置，点击后保持不动。"
+        case .atDesk: return String(localized: "按日常办公姿势坐好，点击后保持手表不动；结束后会自动生成在身边 / 已离开阈值。")
+        case .oneMeter: return String(localized: "把手表放在离 Mac 约 1 米的位置，点击后保持不动。")
+        case .near: return String(localized: "坐回正常办公位置，点击后保持不动。")
+        case .far: return String(localized: "走到你希望自动锁屏的位置，点击后保持不动。")
         }
     }
 
@@ -74,9 +74,9 @@ final class CalibrationController: ObservableObject {
         lastSampleRSSI = nil
         remaining = target.duration
         isSampling = true
-        message = "正在采样「\(target.title)」，请保持不动…"
+        message = String(localized: "正在采样「\(target.title)」，请保持不动…")
         messageKind = .info
-        DiagnosticsLog.shared.append(.info, "开始校准采样：\(target.title)")
+        DiagnosticsLog.shared.append(.info, String(localized: "开始校准采样：\(target.title)"))
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
@@ -90,7 +90,7 @@ final class CalibrationController: ObservableObject {
         timer = nil
         isSampling = false
         samples = []
-        message = "已取消采样"
+        message = String(localized: "已取消采样")
         messageKind = .info
     }
 
@@ -118,9 +118,9 @@ final class CalibrationController: ObservableObject {
 
     private func finish() {
         guard !samples.isEmpty else {
-            message = "未采集到手表信号，请确认已绑定手表并在蓝牙范围内"
+            message = String(localized: "未采集到手表信号，请确认已绑定手表并在蓝牙范围内")
             messageKind = .warning
-            DiagnosticsLog.shared.append(.warning, "校准失败：\(target.title) 没有可用样本")
+            DiagnosticsLog.shared.append(.warning, String(localized: "校准失败：\(target.title) 没有可用样本"))
             return
         }
 
@@ -135,21 +135,21 @@ final class CalibrationController: ObservableObject {
                 )
             )
             settings.applyAutoCalibration(result)
-            message = "已按当前位置设置：1 米标定 \(result.measuredPower)、在身边 \(result.nearRSSI)、已离开 \(result.farRSSI) dBm（\(samples.count) 个样本）"
+            message = String(localized: "已按当前位置设置：1 米标定 \(result.measuredPower)、在身边 \(result.nearRSSI)、已离开 \(result.farRSSI) dBm（\(samples.count) 个样本）")
             messageKind = .success
         case .oneMeter:
             let value = DistanceCalibrator.measuredPower(samples: samples, fallback: settings.measuredPower)
             settings.measuredPower = value
-            message = "已写入 1 米标定值 \(value) dBm（\(samples.count) 个样本）"
+            message = String(localized: "已写入 1 米标定值 \(value) dBm（\(samples.count) 个样本）")
             messageKind = .success
         case .near:
             nearSamples = samples
-            message = "已记录「在身边」样本 \(samples.count) 个，请再采样「已离开」位置"
+            message = String(localized: "已记录「在身边」样本 \(samples.count) 个，请再采样「已离开」位置")
             messageKind = .success
         case .far:
             farSamples = samples
             guard !nearSamples.isEmpty else {
-                message = "请先采样「在身边」位置，再采样当前位置"
+                message = String(localized: "请先采样「在身边」位置，再采样当前位置")
                 messageKind = .warning
                 return
             }
@@ -160,10 +160,10 @@ final class CalibrationController: ObservableObject {
             )
             settings.nearRSSI = result.nearRSSI
             settings.farRSSI = result.farRSSI
-            message = "已生成阈值：在身边 \(result.nearRSSI) dBm / 已离开 \(result.farRSSI) dBm"
+            message = String(localized: "已生成阈值：在身边 \(result.nearRSSI) dBm / 已离开 \(result.farRSSI) dBm")
             messageKind = .success
         }
-        DiagnosticsLog.shared.append(.info, "校准完成：\(message ?? "")")
+        DiagnosticsLog.shared.append(.info, String(localized: "校准完成：\(message ?? "")"))
     }
 }
 
@@ -181,8 +181,8 @@ struct CalibrationWizardView: View {
 
     var body: some View {
         FormCard(
-            title: "距离校准向导",
-            subtitle: "把手表放到指定位置后点「开始采样」，应用会采集 \(target.duration) 秒信号并自动写入参数。"
+            title: String(localized: "距离校准向导"),
+            subtitle: String(localized: "把手表放到指定位置后点「开始采样」，应用会采集 \(target.duration) 秒信号并自动写入参数。")
         ) {
             VStack(alignment: .leading, spacing: WLSpacing.xs) {
                 ForEach(CalibrationTarget.allCases) { item in
@@ -195,9 +195,9 @@ struct CalibrationWizardView: View {
 
             HStack(spacing: WLSpacing.sm) {
                 if controller.isSampling {
-                    WLButton("取消采样", role: .danger, width: 110) { controller.cancel() }
+                    WLButton(String(localized: "取消采样"), role: .danger, width: 110) { controller.cancel() }
                 } else {
-                    WLButton("开始采样", systemImage: "record.circle", role: .primary, width: 110) {
+                    WLButton(String(localized: "开始采样"), systemImage: "record.circle", role: .primary, width: 110) {
                         controller.start(target)
                     }
                 }
@@ -221,7 +221,7 @@ struct CalibrationWizardView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                 Spacer(minLength: WLSpacing.sm)
-                WLButton("重置已采集样本", isDisabled: controller.isSampling, width: 130) {
+                WLButton(String(localized: "重置已采集样本"), isDisabled: controller.isSampling, width: 130) {
                     controller.reset()
                 }
             }

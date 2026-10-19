@@ -29,7 +29,7 @@ struct UnlockPage: View {
             }
 
             Section {
-                WLButton("打开「系统设置 → 锁定屏幕」", systemImage: "arrow.up.forward.app") {
+                WLButton(String(localized: "打开「系统设置 → 锁定屏幕」"), systemImage: "arrow.up.forward.app") {
                     NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension")!)
                 }
                 .help("在系统设置里开启「使用 Apple Watch 解锁」")
@@ -46,13 +46,13 @@ struct UnlockPage: View {
                         .textContentType(.password)
                         .help("仅保存在本机钥匙串，不会同步或上传")
                     HStack(spacing: WLSpacing.sm) {
-                        WLButton("保存到钥匙串", systemImage: "key.fill", role: .primary) { save() }
+                        WLButton(String(localized: "保存到钥匙串"), systemImage: "key.fill", role: .primary) { save() }
                             .help("以「仅本机解锁时可访问」的方式写入钥匙串")
-                        WLButton("清除", systemImage: "trash", role: .danger) { confirmingClear = true }
+                        WLButton(String(localized: "清除"), systemImage: "trash", role: .danger) { confirmingClear = true }
                             .help("删除钥匙串中已保存的登录密码")
                         Spacer(minLength: 0)
                     }
-                    WLButton("打开辅助功能授权", systemImage: "hand.raised") {
+                    WLButton(String(localized: "打开辅助功能授权"), systemImage: "hand.raised") {
                         _ = AccessibilityProbe.isTrusted(prompt: true)
                     }
                     .help("模拟键入解锁密码需要辅助功能权限")
@@ -86,7 +86,7 @@ struct UnlockPage: View {
     private func save() {
         do {
             try KeychainStore().savePassword(password)
-            message = "已保存到钥匙串"
+            message = String(localized: "已保存到钥匙串")
             isMessageError = false
             password = ""
         } catch {
@@ -98,7 +98,7 @@ struct UnlockPage: View {
     private func clear() {
         do {
             try KeychainStore().deletePassword()
-            message = "已清除"
+            message = String(localized: "已清除")
             isMessageError = false
         } catch {
             message = error.localizedDescription

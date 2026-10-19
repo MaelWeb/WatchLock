@@ -26,18 +26,18 @@ struct DiagnosticsPage: View {
 
     private var tuningCard: some View {
         FormCard(
-            title: "误锁反馈与自动调参",
-            subtitle: "在菜单栏点击「刚才这次是误锁？」即记为一次误锁；误锁率超过 20%（至少 3 次样本）时自动放宽「已离开」阈值，长期无误锁后缓慢回到默认值。"
+            title: String(localized: "误锁反馈与自动调参"),
+            subtitle: String(localized: "在菜单栏点击「刚才这次是误锁？」即记为一次误锁；误锁率超过 20%（至少 3 次样本）时自动放宽「已离开」阈值，长期无误锁后缓慢回到默认值。")
         ) {
             HStack(spacing: WLSpacing.sm) {
-                StatChip(label: "自动锁定", value: "\(settings.autoLockCount)")
+                StatChip(label: String(localized: "自动锁定"), value: "\(settings.autoLockCount)")
                 StatChip(
-                    label: "误锁",
+                    label: String(localized: "误锁"),
                     value: "\(settings.falseLockCount)",
                     tint: settings.falseLockCount > 0 ? WLColor.warning : Color.primary
                 )
                 StatChip(
-                    label: "误锁率",
+                    label: String(localized: "误锁率"),
                     value: "\(Int(AutoTuner.falseLockRate(settings.tuningFeedback) * 100))%"
                 )
             }
@@ -48,7 +48,7 @@ struct DiagnosticsPage: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: WLSpacing.sm) {
-                WLButton("恢复默认阈值", width: 130) { session.resetTuning() }
+                WLButton(String(localized: "恢复默认阈值"), width: 130) { session.resetTuning() }
                     .help("清空自动调参样本并把阈值恢复到默认")
                 Spacer(minLength: 0)
             }
@@ -58,12 +58,12 @@ struct DiagnosticsPage: View {
     // MARK: - 诊断日志
 
     private var logCard: some View {
-        FormCard(title: "诊断日志") {
+        FormCard(title: String(localized: "诊断日志")) {
             if log.entries.isEmpty {
                 EmptyStateView(
-                    title: "暂无日志",
+                    title: String(localized: "暂无日志"),
                     systemImage: "doc.text",
-                    message: "应用运行后会自动记录扫描、锁定与校准事件。"
+                    message: String(localized: "应用运行后会自动记录扫描、锁定与校准事件。")
                 )
                 .frame(minHeight: 140)
             } else {
@@ -89,8 +89,8 @@ struct DiagnosticsPage: View {
             }
 
             HStack(spacing: WLSpacing.sm) {
-                WLButton("导出…", width: 100) { exportLog() }
-                WLButton("清空日志", role: .danger, width: 100) { confirmingClearLog = true }
+                WLButton(String(localized: "导出…"), width: 100) { exportLog() }
+                WLButton(String(localized: "清空日志"), role: .danger, width: 100) { confirmingClearLog = true }
                 Spacer(minLength: 0)
             }
         }
@@ -115,7 +115,7 @@ struct DiagnosticsPage: View {
                 .padding(.top, WLSpacing.sm)
         } label: {
             CardSectionHeader(
-                title: "广播抓包（用于固化识别规则）",
+                title: String(localized: "广播抓包（用于固化识别规则）"),
                 systemImage: "antenna.radiowaves.left.and.right",
                 tint: Color.primary
             )
@@ -129,7 +129,7 @@ struct DiagnosticsPage: View {
     // MARK: - 调试
 
     private var debugCard: some View {
-        FormCard(title: "调试") {
+        FormCard(title: String(localized: "调试")) {
             Toggle("菜单栏「更多」里显示调试子菜单（模拟信号）", isOn: $settings.debugMenuEnabled)
             Text("开启后可从菜单栏直接注入 -50 / -65 / -85 dBm 或模拟信号丢失，不必真的走动就能验证锁定链路。也可以带环境变量启动：WATCHLOCK_FAKE_RSSI=-85")
                 .font(.caption)
@@ -184,7 +184,7 @@ private struct AdvertisementCaptureSection: View {
                         Text("\(device.displayName) · \(rssiText(device))")
                             .font(.caption)
                         Text(AppleAdvertisement.describe(device.manufacturerData)
-                             ?? "无厂商数据 / 非 Apple 广播")
+                             ?? String(localized: "无厂商数据 / 非 Apple 广播"))
                             .font(.caption.monospaced())
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
@@ -193,8 +193,8 @@ private struct AdvertisementCaptureSection: View {
             }
 
             HStack(spacing: WLSpacing.sm) {
-                WLButton("复制抓包信息", width: 130) { copy() }
-                WLButton("导出…", width: 100) { export() }
+                WLButton(String(localized: "复制抓包信息"), width: 130) { copy() }
+                WLButton(String(localized: "导出…"), width: 100) { export() }
                 if copied {
                     Text("已复制到剪贴板")
                         .font(.caption)
@@ -207,22 +207,22 @@ private struct AdvertisementCaptureSection: View {
 
     private var emptyHint: String {
         if session.bluetoothState != .poweredOn {
-            return "蓝牙未就绪（\(session.bluetoothState.title)）。若刚重新打包安装，macOS 可能按新应用重新要求蓝牙权限：系统设置 → 隐私与安全性 → 蓝牙。"
+            return String(localized: "蓝牙未就绪（\(session.bluetoothState.title)）。若刚重新打包安装，macOS 可能按新应用重新要求蓝牙权限：系统设置 → 隐私与安全性 → 蓝牙。")
         }
         if !session.scanner.isScanning {
-            return "当前未在扫描。请确认「通用」里自动锁定已开启且未暂停。"
+            return String(localized: "当前未在扫描。请确认「通用」里自动锁定已开启且未暂停。")
         }
         if session.scanner.discoveryCount == 0 {
-            return "暂未发现任何 BLE 广播。请确认手表在旁边且蓝牙开启；若仍为空，把诊断日志导出发我。"
+            return String(localized: "暂未发现任何 BLE 广播。请确认手表在旁边且蓝牙开启；若仍为空，把诊断日志导出发我。")
         }
         if devices.isEmpty {
-            return "已收到 \(session.scanner.discoveryCount) 条广播但没有设备被记录下来，这不应发生 —— 请用上方「诊断日志 → 导出」把日志发我。"
+            return String(localized: "已收到 \(session.scanner.discoveryCount) 条广播但没有设备被记录下来，这不应发生 —— 请用上方「诊断日志 → 导出」把日志发我。")
         }
-        return "扫描到了 \(session.scanner.discoveryCount) 条广播，但系统未提供有效信号强度（RSSI=127，macOS 已知行为），锁定判定暂不可用。可尝试关闭再打开 Mac 蓝牙；广播内容已记录在下方。"
+        return String(localized: "扫描到了 \(session.scanner.discoveryCount) 条广播，但系统未提供有效信号强度（RSSI=127，macOS 已知行为），锁定判定暂不可用。可尝试关闭再打开 Mac 蓝牙；广播内容已记录在下方。")
     }
 
     private func rssiText(_ device: DiscoveredWatch) -> String {
-        device.rssi >= 0 ? "信号强度未知" : "\(device.rssi) dBm"
+        device.rssi >= 0 ? String(localized: "信号强度未知") : "\(device.rssi) dBm"
     }
 
     private func makeText() -> String {

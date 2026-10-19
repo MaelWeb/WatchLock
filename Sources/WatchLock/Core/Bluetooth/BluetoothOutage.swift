@@ -39,12 +39,12 @@ enum BluetoothOutage {
     static func notificationBody(for state: CBManagerState) -> String {
         let cause: String
         switch state {
-        case .poweredOff: cause = "蓝牙已关闭"
-        case .unauthorized: cause = "WatchLock 没有蓝牙权限"
-        case .unsupported: cause = "当前设备不支持低功耗蓝牙"
-        case .resetting: cause = "蓝牙模块正在重置"
-        default: cause = "蓝牙不可用"
+        case .poweredOff: cause = String(localized: "蓝牙已关闭")
+        case .unauthorized: cause = String(localized: "WatchLock 没有蓝牙权限")
+        case .unsupported: cause = String(localized: "当前设备不支持低功耗蓝牙")
+        case .resetting: cause = String(localized: "蓝牙模块正在重置")
+        default: cause = String(localized: "蓝牙不可用")
         }
-        return "\(cause)，自动锁定已暂停；恢复后会自动继续。"
+        return String(localized: "\(cause)，自动锁定已暂停；恢复后会自动继续。")
     }
 }

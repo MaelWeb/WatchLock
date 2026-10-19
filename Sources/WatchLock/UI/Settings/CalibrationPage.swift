@@ -10,15 +10,15 @@ struct CalibrationPage: View {
                 CalibrationWizardView()
 
                 FormCard(
-                    title: "距离模型（手动）",
-                    subtitle: "自动校准通常够用；只有在估算距离明显偏离时才需要微调。"
+                    title: String(localized: "距离模型（手动）"),
+                    subtitle: String(localized: "自动校准通常够用；只有在估算距离明显偏离时才需要微调。")
                 ) {
                     Stepper("1 米处标定值：\(settings.measuredPower) dBm",
                             value: $settings.measuredPower, in: -90 ... -30, step: 1)
                         .help("手表在离 Mac 约 1 米处的平均信号强度")
-                    sliderRow("路径损耗指数", value: $settings.pathLossExponent,
+                    sliderRow(String(localized: "路径损耗指数"), value: $settings.pathLossExponent,
                               range: 1.5 ... 4.0, step: 0.1, format: "%.1f")
-                    sliderRow("平滑系数", value: $settings.smoothing,
+                    sliderRow(String(localized: "平滑系数"), value: $settings.smoothing,
                               range: 0.05 ... 1.0, step: 0.05, format: "%.2f")
                     Text("路径损耗指数越大表示信号衰减越快；平滑系数越小，距离显示越稳但响应越慢。")
                         .font(.caption)

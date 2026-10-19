@@ -19,29 +19,29 @@ enum LockMethod: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .controlCommandQ: return "锁定屏幕（⌃⌘Q，推荐）"
-        case .systemLockScreen: return "锁定屏幕（系统接口，免授权）"
-        case .cgSessionSuspend: return "锁定屏幕（CGSession，旧系统）"
-        case .displaySleep: return "仅关闭显示器"
-        case .systemSleep: return "进入睡眠"
-        case .customCommand: return "自定义命令"
+        case .controlCommandQ: return String(localized: "锁定屏幕（⌃⌘Q，推荐）")
+        case .systemLockScreen: return String(localized: "锁定屏幕（系统接口，免授权）")
+        case .cgSessionSuspend: return String(localized: "锁定屏幕（CGSession，旧系统）")
+        case .displaySleep: return String(localized: "仅关闭显示器")
+        case .systemSleep: return String(localized: "进入睡眠")
+        case .customCommand: return String(localized: "自定义命令")
         }
     }
 
     var detail: String {
         switch self {
         case .controlCommandQ:
-            return "用 AppleScript 模拟 ⌃⌘Q，效果与系统锁屏一致。首次使用需要在「系统设置 → 隐私与安全性 → 辅助功能」中授权。"
+            return String(localized: "用 AppleScript 模拟 ⌃⌘Q，效果与系统锁屏一致。首次使用需要在「系统设置 → 隐私与安全性 → 辅助功能」中授权。")
         case .systemLockScreen:
-            return "调用系统自带「锁定屏幕」所用的内部接口，效果与苹果菜单里的「锁定屏幕」一致，不需要辅助功能权限。该接口未公开，系统升级后可能失效，失效时会通知你改用其他方式。"
+            return String(localized: "调用系统自带「锁定屏幕」所用的内部接口，效果与苹果菜单里的「锁定屏幕」一致，不需要辅助功能权限。该接口未公开，系统升级后可能失效，失效时会通知你改用其他方式。")
         case .cgSessionSuspend:
-            return "调用 CGSession -suspend。该可执行文件在 macOS 26 上已被移除，仅适用于 macOS 14/15。"
+            return String(localized: "调用 CGSession -suspend。该可执行文件在 macOS 26 上已被移除，仅适用于 macOS 14/15。")
         case .displaySleep:
-            return "调用 pmset displaysleepnow，只熄灭屏幕，不锁定会话；若系统设为息屏后立即要求密码，效果等同锁屏。"
+            return String(localized: "调用 pmset displaysleepnow，只熄灭屏幕，不锁定会话；若系统设为息屏后立即要求密码，效果等同锁屏。")
         case .systemSleep:
-            return "调用 pmset sleepnow，整机进入睡眠。"
+            return String(localized: "调用 pmset sleepnow，整机进入睡眠。")
         case .customCommand:
-            return "执行自定义 shell 命令，可用于对接脚本或企业管控工具。"
+            return String(localized: "执行自定义 shell 命令，可用于对接脚本或企业管控工具。")
         }
     }
 
@@ -89,21 +89,21 @@ struct ScreenLocker {
 
     /// 缺权限时给用户的处理指引（诊断日志与通知共用）。
     static let accessibilityGuidance =
-        "缺少辅助功能权限：⌃⌘Q 锁屏需要在「系统设置 → 隐私与安全性 → 辅助功能」中勾选 WatchLock。"
-        + "若已勾选仍失败，多半是重新打包后签名变了、旧授权失效：选中列表里的 WatchLock 点「−」删除，再重新添加。"
+        String(localized: "缺少辅助功能权限：⌃⌘Q 锁屏需要在「系统设置 → 隐私与安全性 → 辅助功能」中勾选 WatchLock。")
+        + String(localized: "若已勾选仍失败，多半是重新打包后签名变了、旧授权失效：选中列表里的 WatchLock 点「−」删除，再重新添加。")
 
     /// 系统私有锁屏接口不可用时的处理指引。
     static let systemAPIGuidance =
-        "系统锁屏接口在当前 macOS 上不可用（该类未公开的接口可能随系统升级被移除）。"
-        + "请在「设置 → 通用 → 锁定方式」改用「锁定屏幕（⌃⌘Q）」或「仅关闭显示器」。"
+        String(localized: "系统锁屏接口在当前 macOS 上不可用（该类未公开的接口可能随系统升级被移除）。")
+        + String(localized: "请在「设置 → 通用 → 锁定方式」改用「锁定屏幕（⌃⌘Q）」或「仅关闭显示器」。")
 
     /// 通知里用的简短版本。
     static let accessibilityNotificationBody =
-        "⌃⌘Q 锁屏需要辅助功能权限：系统设置 → 隐私与安全性 → 辅助功能 → 勾选 WatchLock"
+        String(localized: "⌃⌘Q 锁屏需要辅助功能权限：系统设置 → 隐私与安全性 → 辅助功能 → 勾选 WatchLock")
 
     /// 通知里用的简短版本（系统接口不可用）。
     static let systemAPINotificationBody =
-        "系统锁屏接口已不可用，请在「设置 → 通用 → 锁定方式」改用 ⌃⌘Q 或「仅关闭显示器」"
+        String(localized: "系统锁屏接口已不可用，请在「设置 → 通用 → 锁定方式」改用 ⌃⌘Q 或「仅关闭显示器」")
 
     /// 执行前就能确定会失败的原因；`nil` 表示可以执行。
     func permissionIssue() -> String? {
@@ -141,23 +141,23 @@ struct ScreenLocker {
     @discardableResult
     func lock() -> Bool {
         guard isCommandValid else {
-            DiagnosticsLog.shared.append(.error, "锁屏命令为空（\(method.title)）")
+            DiagnosticsLog.shared.append(.error, String(localized: "锁屏命令为空（\(method.title)）"))
             return false
         }
         if let issue = permissionIssue() {
-            DiagnosticsLog.shared.append(.error, "无法锁定：\(issue)")
+            DiagnosticsLog.shared.append(.error, String(localized: "无法锁定：\(issue)"))
             return false
         }
 
-        DiagnosticsLog.shared.append(.info, "执行锁屏：\(method.title)")
+        DiagnosticsLog.shared.append(.info, String(localized: "执行锁屏：\(method.title)"))
 
         // 进程内调用系统私有接口：没有 shell 命令可拼，失败只可能是接口不可用。
         if method == .systemLockScreen {
             guard systemLock() else {
-                DiagnosticsLog.shared.append(.error, "无法锁定：\(Self.systemAPIGuidance)")
+                DiagnosticsLog.shared.append(.error, String(localized: "无法锁定：\(Self.systemAPIGuidance)"))
                 return false
             }
-            DiagnosticsLog.shared.append(.info, "系统锁屏接口调用成功")
+            DiagnosticsLog.shared.append(.info, String(localized: "系统锁屏接口调用成功"))
             return true
         }
 
@@ -173,20 +173,20 @@ struct ScreenLocker {
             let output = (String(data: data, encoding: .utf8) ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             if finished.terminationStatus == 0 {
-                DiagnosticsLog.shared.append(.info, "锁屏命令执行成功")
+                DiagnosticsLog.shared.append(.info, String(localized: "锁屏命令执行成功"))
             } else {
                 // 预检通过但仍被拒（例如自定义命令里也用了 System Events），补上处理指引。
                 let hint = Self.isAccessibilityDenied(output: output) ? "\n" + Self.accessibilityGuidance : ""
                 DiagnosticsLog.shared.append(
                     .error,
-                    "锁屏命令失败（退出码 \(finished.terminationStatus)）：\(output.isEmpty ? "无输出" : output)\(hint)"
+                    String(localized: "锁屏命令失败（退出码 \(finished.terminationStatus)）：\(output.isEmpty ? String(localized: "无输出") : output)\(hint)")
                 )
             }
         }
         do {
             try process.run()
         } catch {
-            DiagnosticsLog.shared.append(.error, "锁屏失败：\(error.localizedDescription)")
+            DiagnosticsLog.shared.append(.error, String(localized: "锁屏失败：\(error.localizedDescription)"))
             return false
         }
         return true
@@ -208,10 +208,10 @@ struct ScreenLocker {
             &userActivityAssertionID
         )
         guard result == kIOReturnSuccess else {
-            DiagnosticsLog.shared.append(.error, "显示器唤醒请求失败（IOKit \(result)）")
+            DiagnosticsLog.shared.append(.error, String(localized: "显示器唤醒请求失败（IOKit \(result)）"))
             return false
         }
-        DiagnosticsLog.shared.append(.info, "已提交显示器唤醒请求，等待系统显示器唤醒通知")
+        DiagnosticsLog.shared.append(.info, String(localized: "已提交显示器唤醒请求，等待系统显示器唤醒通知"))
         return true
     }
 }

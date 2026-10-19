@@ -40,7 +40,7 @@ final class SleepWakeMonitor {
     func refreshSessionLockState() -> Bool {
         guard let actual = sessionLockProbe(), actual != isScreenLocked else { return isScreenLocked }
         isScreenLocked = actual
-        DiagnosticsLog.shared.append(.warning, "会话锁定状态与通知记录不一致，已按系统查询校正为\(actual ? "已锁定" : "未锁定")")
+        DiagnosticsLog.shared.append(.warning, String(localized: "会话锁定状态与通知记录不一致，已按系统查询校正为\(actual ? String(localized: "已锁定") : String(localized: "未锁定"))"))
         if actual { onScreenLocked?() } else { onScreenUnlocked?() }
         return actual
     }
@@ -71,7 +71,7 @@ final class SleepWakeMonitor {
             queue: .main
         ) { [weak self] _ in
             self?.isDisplayAsleep = true
-            DiagnosticsLog.shared.append(.info, "显示器已熄屏")
+            DiagnosticsLog.shared.append(.info, String(localized: "显示器已熄屏"))
             self?.onDisplaySleep?()
         })
         workspaceObservers.append(workspace.addObserver(
@@ -81,7 +81,7 @@ final class SleepWakeMonitor {
         ) { [weak self] _ in
             // Apple NSWorkspace 文档：此通知只表示屏幕唤醒，不表示会话已解锁。
             self?.isDisplayAsleep = false
-            DiagnosticsLog.shared.append(.info, "收到系统显示器唤醒通知（不代表会话解锁）")
+            DiagnosticsLog.shared.append(.info, String(localized: "收到系统显示器唤醒通知（不代表会话解锁）"))
             self?.onDisplayWake?()
         })
 
@@ -92,7 +92,7 @@ final class SleepWakeMonitor {
             queue: .main
         ) { [weak self] _ in
             self?.isScreenLocked = true
-            DiagnosticsLog.shared.append(.info, "收到会话锁定通知")
+            DiagnosticsLog.shared.append(.info, String(localized: "收到会话锁定通知"))
             self?.onScreenLocked?()
         })
         distributedObservers.append(distributed.addObserver(
@@ -101,7 +101,7 @@ final class SleepWakeMonitor {
             queue: .main
         ) { [weak self] _ in
             self?.isScreenLocked = false
-            DiagnosticsLog.shared.append(.info, "收到会话解锁通知")
+            DiagnosticsLog.shared.append(.info, String(localized: "收到会话解锁通知"))
             self?.onScreenUnlocked?()
         })
     }

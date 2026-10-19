@@ -81,8 +81,8 @@ struct ThresholdBand: View {
                             .frame(width: 2, height: 24)
                             .offset(x: currentX * width)
                     }
-                    handle(color: WLColor.warning, x: farX, help: "已离开阈值，拖到刚走出判定范围的位置")
-                    handle(color: WLColor.success, x: nearX, help: "在身边阈值，拖到日常办公时的信号强度")
+                    handle(color: WLColor.warning, x: farX, help: String(localized: "已离开阈值，拖到刚走出判定范围的位置"))
+                    handle(color: WLColor.success, x: nearX, help: String(localized: "在身边阈值，拖到日常办公时的信号强度"))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 .contentShape(Rectangle())

@@ -17,12 +17,12 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .general: return "通用"
-        case .device: return "设备"
-        case .unlock: return "解锁"
-        case .calibration: return "校准"
-        case .diagnostics: return "诊断"
-        case .about: return "关于"
+        case .general: return String(localized: "通用")
+        case .device: return String(localized: "设备")
+        case .unlock: return String(localized: "解锁")
+        case .calibration: return String(localized: "校准")
+        case .diagnostics: return String(localized: "诊断")
+        case .about: return String(localized: "关于")
         }
     }
 
@@ -254,8 +254,8 @@ private struct GeneralPage: View {
         let available = SystemLockScreen.isAvailable
         return Label(
             available
-                ? "已找到系统锁屏接口（仅符号检测，不代表已验证锁屏效果；系统升级后可能失效）"
-                : "当前系统上找不到该接口，请改用其他方式",
+                ? String(localized: "已找到系统锁屏接口（仅符号检测，不代表已验证锁屏效果；系统升级后可能失效）")
+                : String(localized: "当前系统上找不到该接口，请改用其他方式"),
             systemImage: available ? "exclamationmark.triangle" : "xmark.octagon"
         )
         .font(WLFont.caption)
@@ -264,15 +264,14 @@ private struct GeneralPage: View {
 
     /// 例外项会让「该锁没锁」，把代价写清楚；两项都默认关闭。
     private var exceptionsHint: String {
-        "两项默认关闭，开启后在对应场景下会推迟锁屏，请自行权衡。" +
-        "「会议」依据是应用持有阻止显示器睡眠的系统断言，具体软件是否都会持有尚未逐一验证；" +
-        "用户主动运行的 caffeinate 不计入。"
+        String(localized: "两项默认关闭，开启后在对应场景下会推迟锁屏，请自行权衡。") +
+        String(localized: "「会议」依据是应用持有阻止显示器睡眠的系统断言，具体软件是否都会持有尚未逐一验证；") +
+        String(localized: "用户主动运行的 caffeinate 不计入。")
     }
 
     private var thresholdHint: String {
-        "阈值越接近越容易误锁，已强制保留 \(ThresholdMath.minimumGap) dBm 间隔。" +
-        "手表与 iPhone 连接时广播会被系统节流，丢失前信号很强时超时会自动放宽到 " +
-        "\(Int(settings.signalLostTimeout * 2.5)) 秒。"
+        String(localized: "阈值越接近越容易误锁，已强制保留 \(ThresholdMath.minimumGap) dBm 间隔。") +
+        String(localized: "手表与 iPhone 连接时广播会被系统节流，丢失前信号很强时超时会自动放宽到 \(Int(settings.signalLostTimeout * 2.5)) 秒。")
     }
 
     /// 阈值改动统一过 clamp，避免设出「在身边比已离开还弱」的非法组合。
@@ -301,6 +300,9 @@ private struct GeneralPage: View {
 
 private struct AboutPage: View {
     @ObservedObject private var settings = SettingsStore.shared
+    @State private var checking = false
+    @State private var updateMessage: String?
+    @State private var updatePage: URL?
 
     var body: some View {
         VStack(spacing: WLSpacing.md) {
@@ -321,9 +323,9 @@ private struct AboutPage: View {
                 .frame(width: 240)
                 .padding(.vertical, WLSpacing.xs)
 
-            FormCard(subtitle: "换手表、重新授权蓝牙，或想重看一遍说明时，随时可以重跑引导。") {
+            FormCard(subtitle: String(localized: "换手表、重新授权蓝牙，或想重看一遍说明时，随时可以重跑引导。")) {
                 HStack(spacing: WLSpacing.sm) {
-                    WLButton("重新运行首次启动引导", systemImage: "arrow.counterclockwise", width: 240) {
+                    WLButton(String(localized: "重新运行首次启动引导"), systemImage: "arrow.counterclockwise", width: 240) {
                         settings.hasCompletedOnboarding = false
                         OnboardingWindow.present(session: AppSession.shared)
                     }
@@ -333,9 +335,39 @@ private struct AboutPage: View {
             }
             .frame(width: 320)
 
-            Text("应用不联网、不上传任何数据，全部在本机计算。")
+            FormCard(subtitle: String(localized: "只有你点击「检查更新」时才会访问一次 GitHub，不会自动下载或安装。")) {
+                HStack(spacing: WLSpacing.sm) {
+                    WLButton(
+                        checking ? String(localized: "正在检查…") : String(localized: "检查更新"),
+                        systemImage: "arrow.triangle.2.circlepath",
+                        isDisabled: checking,
+                        width: 150
+                    ) { checkForUpdates() }
+                    WLButton(String(localized: "帮助手册"), systemImage: "questionmark.circle", width: 130) {
+                        NSWorkspace.shared.open(UpdateChecker.helpURL(preferredLanguages: Locale.preferredLanguages))
+                    }
+                    Spacer(minLength: 0)
+                }
+                if let updateMessage {
+                    HStack(spacing: WLSpacing.sm) {
+                        Text(updateMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let updatePage {
+                            Button(String(localized: "前往下载")) { NSWorkspace.shared.open(updatePage) }
+                                .buttonStyle(.link)
+                                .font(.caption)
+                        }
+                    }
+                }
+            }
+            .frame(width: 320)
+
+            Text("检查更新以外，应用不联网、不上传任何数据，全部在本机计算。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
 
             Spacer(minLength: 0)
         }
@@ -343,12 +375,38 @@ private struct AboutPage: View {
         .padding(WLSpacing.xl)
     }
 
+    private var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+    }
+
+    private func checkForUpdates() {
+        checking = true
+        updateMessage = nil
+        updatePage = nil
+        let current = currentVersion
+        Task { @MainActor in
+            let outcome = await UpdateChecker.check(current: current)
+            checking = false
+            switch outcome {
+            case .upToDate(let version):
+                updateMessage = String(localized: "已是最新版本（\(version)）")
+            case .available(let latest, let current, let page):
+                updateMessage = String(localized: "发现新版本 \(latest)（当前 \(current)）")
+                updatePage = page
+            case .noRelease:
+                updateMessage = String(localized: "暂未发布任何版本")
+            case .failed(let reason):
+                updateMessage = reason
+            }
+        }
+    }
+
     private var versionText: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
         if let build, build != short {
-            return "版本 \(short)（\(build)）"
+            return String(localized: "版本 \(short)（\(build)）")
         }
-        return "版本 \(short)"
+        return String(localized: "版本 \(short)")
     }
 }

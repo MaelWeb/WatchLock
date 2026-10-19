@@ -50,7 +50,7 @@ swift -e 'import LocalAuthentication; import Foundation; for _ in 0..<60 { var e
 pmset -g assertions | grep -i watchlock
 ```
 
-第 3 项预期 `pmset` 里**没有** WatchLock 的 `PreventUserIdleSystemSleep`（`.userInitiatedAllowingIdleSystemSleep` 已实测不产生该断言）。第 2 项若走远后仍为 true，则 companion 策略不能作为「手表离开」的信号，保持现状只用于前置条件提示。
+第 3 项预期 `pmset` 里**没有** WatchLock 的 `PreventUserIdleSystemSleep`（`.userInitiatedAllowingIdleSystemSleep` 已实测不产生该断言）。第 2 项已用 `Scripts/probe-companion.swift` 采样约 1 小时 40 分（结论见 `docs/anti-false-lock-research.md` §6.3）：用户离开期间多次变为 true、用户在场时出现 false、且比蓝牙判离开慢约 41 秒，**不能作为「手表离开」信号**，只用于前置条件提示；受控动作（摘下手表、锁手表等）尚未做。第 1 项的同一份采样里，`CGSSessionScreenIsLocked` 在 WatchLock 锁屏时变为 true、解锁时变为 false，与诊断日志的锁屏 / 解锁时刻一致。用法：`swiftc -o /tmp/wl_companion_probe Scripts/probe-companion.swift && /tmp/wl_companion_probe 7200 1`。
 
 **会议 / 演示豁免与重新布防**（接口已实测，具体软件覆盖面与时序未验证）：
 
@@ -177,7 +177,7 @@ REQUIREMENTS.md    # 需求规格说明书
 - M3：距离校准向导（FR-14）、误锁反馈与自动调参（FR-16）、调试用 RSSI 模拟（FR-17）、watchOS 配套 App 评估（结论：本期不实现）—— 已完成
 - M3.5：UI 重构与品牌（含后续追加的状态卡图标同源、可选私有 API 锁屏、GitHub Release 分发决策）（设计 token 与组件库、菜单栏面板信息层级、设置窗口改自绘侧栏并把「高级」拆为「校准 / 诊断」、同轴阈值带、引导与校准向导重做、无障碍与破坏性操作确认）—— 已完成
 
-- M4：GitHub Actions 通用 DMG 打包与 Release 流水线 —— 已实现，本地通用 DMG 与静态校验通过，首次云端执行待验证；本地化与帮助手册仍待完成，Developer ID 签名 / 公证为可选增强。
+- M4：GitHub Actions 通用 DMG 打包与 Release 流水线 —— 已实现，本地通用 DMG 与静态校验通过，首次云端执行待验证；本地化（FR-15）、帮助手册与手动检查更新（FR-18）已实现，Developer ID 签名 / 公证为可选增强。
 
 ## 相关研究
 

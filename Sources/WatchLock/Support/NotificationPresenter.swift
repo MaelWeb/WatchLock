@@ -31,9 +31,9 @@ final class NotificationPresenter {
         didRequestAuthorization = true
         center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error {
-                DiagnosticsLog.shared.append(.error, "通知授权失败：\(error.localizedDescription)")
+                DiagnosticsLog.shared.append(.error, String(localized: "通知授权失败：\(error.localizedDescription)"))
             } else if !granted {
-                DiagnosticsLog.shared.append(.warning, "用户未授权通知，锁定提醒将不会显示")
+                DiagnosticsLog.shared.append(.warning, String(localized: "用户未授权通知，锁定提醒将不会显示"))
             }
         }
     }
@@ -43,7 +43,7 @@ final class NotificationPresenter {
     @discardableResult
     func notify(title: String, body: String, reason: Reason, now: Date = Date()) -> Bool {
         guard throttle.shouldSend(key: reason.key, now: now) else {
-            DiagnosticsLog.shared.append(.info, "通知被限流，跳过：\(reason.key)")
+            DiagnosticsLog.shared.append(.info, String(localized: "通知被限流，跳过：\(reason.key)"))
             return false
         }
         let content = UNMutableNotificationContent()
@@ -52,7 +52,7 @@ final class NotificationPresenter {
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
         center.add(request) { error in
             if let error {
-                DiagnosticsLog.shared.append(.error, "通知发送失败：\(error.localizedDescription)")
+                DiagnosticsLog.shared.append(.error, String(localized: "通知发送失败：\(error.localizedDescription)"))
             }
         }
         return true

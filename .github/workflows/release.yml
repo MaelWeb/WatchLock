@@ -99,6 +99,7 @@ jobs:
 
       - name: Test
         run: |
+          python3 Scripts/localization.py check
           swift test
           python3 -B -m unittest discover -s Tests/ReleaseTests -v
 

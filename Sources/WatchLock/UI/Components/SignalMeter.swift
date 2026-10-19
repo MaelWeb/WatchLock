@@ -38,8 +38,8 @@ struct SignalMeter: View {
     }
 
     private var accessibilityValue: String {
-        guard level > 0 else { return "无信号" }
-        return "\(level) 格，共 \(Self.levelCount) 格"
+        guard level > 0 else { return String(localized: "无信号") }
+        return String(localized: "\(level) 格，共 \(Self.levelCount) 格")
     }
 
     private func barHeight(_ index: Int) -> CGFloat {
