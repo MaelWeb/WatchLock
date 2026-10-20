@@ -347,33 +347,30 @@ private struct AboutPage: View {
                 .foregroundStyle(.secondary)
 
             Divider()
-                .frame(width: 240)
+                .frame(maxWidth: Metrics.cardMaxWidth)
                 .padding(.vertical, WLSpacing.xs)
 
+            // 按钮不写死宽度：撑满卡片内宽，多个按钮时等分，与菜单栏面板的按钮行同一做法。
+            // （原来按钮宽 240 / 150 + 130，各自靠左，卡片右侧留出一截空白，英文长文案还会被截断。）
             FormCard(subtitle: String(localized: "换手表、重新授权蓝牙，或想重看一遍说明时，随时可以重跑引导。")) {
-                HStack(spacing: WLSpacing.sm) {
-                    WLButton(String(localized: "重新运行首次启动引导"), systemImage: "arrow.counterclockwise", width: 240) {
-                        settings.hasCompletedOnboarding = false
-                        OnboardingWindow.present(session: AppSession.shared)
-                    }
-                    .help("重新走一遍授权与绑定流程")
-                    Spacer(minLength: 0)
+                WLButton(String(localized: "重新运行首次启动引导"), systemImage: "arrow.counterclockwise") {
+                    settings.hasCompletedOnboarding = false
+                    OnboardingWindow.present(session: AppSession.shared)
                 }
+                .help("重新走一遍授权与绑定流程")
             }
-            .frame(width: 320)
+            .frame(maxWidth: Metrics.cardMaxWidth)
 
             FormCard(subtitle: String(localized: "只有你点击「检查更新」时才会访问一次 GitHub，不会自动下载或安装。")) {
                 HStack(spacing: WLSpacing.sm) {
                     WLButton(
                         checking ? String(localized: "正在检查…") : String(localized: "检查更新"),
                         systemImage: "arrow.triangle.2.circlepath",
-                        isDisabled: checking,
-                        width: 150
+                        isDisabled: checking
                     ) { checkForUpdates() }
-                    WLButton(String(localized: "帮助手册"), systemImage: "questionmark.circle", width: 130) {
+                    WLButton(String(localized: "帮助手册"), systemImage: "questionmark.circle") {
                         NSWorkspace.shared.open(UpdateChecker.helpURL(preferredLanguages: Locale.preferredLanguages))
                     }
-                    Spacer(minLength: 0)
                 }
                 if let updateMessage {
                     HStack(spacing: WLSpacing.sm) {
@@ -389,7 +386,7 @@ private struct AboutPage: View {
                     }
                 }
             }
-            .frame(width: 320)
+            .frame(maxWidth: Metrics.cardMaxWidth)
 
             Text("检查更新以外，应用不联网、不上传任何数据，全部在本机计算。")
                 .font(.caption)
@@ -400,6 +397,11 @@ private struct AboutPage: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(WLSpacing.xl)
+    }
+
+    private enum Metrics {
+        /// 两张卡片与分隔线共用的最大宽度；窗口更窄时跟随可用宽度收缩，不写死。
+        static let cardMaxWidth: CGFloat = 360
     }
 
     private var currentVersion: String {

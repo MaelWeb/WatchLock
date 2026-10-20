@@ -121,10 +121,26 @@ for lproj in "$ROOT_DIR"/Resources/Localization/*.lproj; do
   cp -R "$lproj" "$APP_DIR/Contents/Resources/"
 done
 
-# 品牌图标资源（由 Scripts/generate-icons.sh 生成，已入库）
-if [[ -f "$ROOT_DIR/Resources/AppIcon.icns" ]]; then
-  cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+# 应用图标：Resources/AppIcon.icon（Icon Composer 文档）→ actool 编译。
+#   Assets.car   macOS 26 的图标（系统负责圆角遮罩 / Liquid Glass 高光 / 深色与着色外观）
+#   AppIcon.icns macOS 14 / 15 的回退图标（actool 按 Apple 的网格自动生成）
+# Info.plist 里的 CFBundleIconFile / CFBundleIconName 都指向 AppIcon。
+ICON_SRC="$ROOT_DIR/Resources/AppIcon.icon"
+ICON_OUT="$(mktemp -d)"
+MIN_OS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$INFO_PLIST")"
+if ! xcrun actool "$ICON_SRC" --compile "$ICON_OUT" --platform macosx \
+    --minimum-deployment-target "$MIN_OS" --app-icon AppIcon \
+    --output-partial-info-plist "$ICON_OUT/partial.plist" \
+    --output-format human-readable-text --notices --warnings --errors >"$ICON_OUT/actool.log" 2>&1; then
+  cat "$ICON_OUT/actool.log" >&2
+  echo "错误：actool 编译 AppIcon.icon 失败（需要 Xcode 26 或更新版本）" >&2
+  exit 1
 fi
+for f in Assets.car AppIcon.icns; do
+  [[ -f "$ICON_OUT/$f" ]] || { echo "错误：actool 没有产出 $f" >&2; cat "$ICON_OUT/actool.log" >&2; exit 1; }
+  cp "$ICON_OUT/$f" "$APP_DIR/Contents/Resources/$f"
+done
+rm -rf "$ICON_OUT"
 
 echo "==> 签名 ($SIGN_IDENTITY)"
 codesign --force --deep --sign "$SIGN_IDENTITY" \

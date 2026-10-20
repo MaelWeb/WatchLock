@@ -56,7 +56,7 @@
 "路径损耗指数" = "Path-loss exponent";
 "平滑系数" = "Smoothing factor";
 "路径损耗指数越大表示信号衰减越快；平滑系数越小，距离显示越稳但响应越慢。" = "A larger path-loss exponent means the signal fades faster; a smaller smoothing factor makes the distance steadier but slower to react.";
-"1 米处标定值：%lld dBm" = "1 m reference: %lld dBm";
+"1 米处标定值" = "Reference power at 1 m";
 "手表在离 Mac 约 1 米处的平均信号强度" = "Average signal strength with the watch about 1 m from the Mac";
 "以当前位置为「在身边」基准" = "Use this position as the \"near\" baseline";
 "标定 1 米处" = "Calibrate at 1 m";
@@ -96,6 +96,8 @@
 "解除绑定" = "Unbind";
 "解除后需要重新绑定才会继续自动锁定" = "After unbinding, you must bind again for auto-lock to continue";
 "已绑定" = "Bound";
+"未绑定" = "Not bound";
+"在下方列表中选择你的手表" = "Pick your watch from the list below";
 "尚未绑定手表" = "No watch bound yet";
 "该设备" = "this device";
 "取消" = "Cancel";

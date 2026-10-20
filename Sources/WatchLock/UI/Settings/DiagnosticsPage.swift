@@ -120,7 +120,6 @@ struct DiagnosticsPage: View {
                 tint: Color.primary
             )
         }
-        .padding(WLSpacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .wlCard()
         .help("展开后可复制候选设备的广播内容，用于排查识别问题")

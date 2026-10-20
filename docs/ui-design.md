@@ -149,7 +149,7 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 > **品牌标识的应用位置**：设置窗口侧栏顶部「图标 + WatchLock」品牌行（`BrandLockup`）、
 > 引导窗 hero 的品牌图标（`BrandLogoView`）、关于页大图标；**状态显示位置（菜单栏 + 面板状态卡）用同一套五态状态图标**，
 > 不用品牌 logo，也不再另选 SF Symbol（图标规范见 `docs/ui-design/08-menubar-icons.html`，状态卡封装见 `StatusIcon`）。
-> 应用图标本身由 `Resources/AppIcon.icns` 提供（Dock / ⌘⇥ / 系统权限列表），见 `docs/logo/` 与 `DEVELOPMENT.md`。
+> 应用图标本身由 `Resources/AppIcon.icon`（Icon Composer 文档）经 `actool` 编译提供（Dock / ⌘⇥ / 系统权限列表），形状、阴影、留白全部交给系统，见 `docs/logo/` 与 `DEVELOPMENT.md`。
 
 以下是线框稿与逐项说明。
 

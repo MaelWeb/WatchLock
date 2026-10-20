@@ -127,19 +127,22 @@ WATCHLOCK_FAKE_RSSI=-85 dist/WatchLock.app/Contents/MacOS/WatchLock
 
 | 文件 | 用途 |
 | --- | --- |
-| `docs/logo/AppIcon-master.png` | 品牌主图（1024，圆角方形 + 渐变底 + 白色 w 锁形） |
-| `Resources/AppIcon.icns` | 应用图标（Dock / Finder / 关于页） |
+| `Resources/AppIcon.icon/` | **应用图标的唯一源**（Icon Composer 文档，可直接用 `Icon Composer.app` 打开）：`Assets/background.png`（背景图层，1024 铺满、不透明）+ `Assets/glyph.png`（白色锁形，透明底）+ `icon.json` |
+| `docs/logo/AppIcon-master.png` | 平面母版：背景 + 锁形合成，1024 **铺满、不透明、无圆角、无留白**（由 `generate-icons.sh` 导出，勿手改） |
+| `docs/logo/AppIcon.png` | 系统效果图（`ictool` 渲染：系统圆角 + Liquid Glass 高光），README 展示用（导出，勿手改） |
 | `Sources/WatchLock/UI/Design/MenuBarIcon.swift` | 五态状态图标本体（代码绘制，无位图资源），菜单栏与面板状态卡共用 |
 | `Sources/WatchLock/UI/Design/StatusIcon.swift` | 面板状态卡的 SwiftUI 封装（复用 `MenuBarIcon`，20pt、语义色） |
 
-改 logo 时：覆盖 `docs/logo/AppIcon-master.png` → 跑 `./Scripts/generate-icons.sh` 重新生成 `Resources/AppIcon.icns` → 提交产物（构建不再依赖本机图像工具）。
+**应用图标规范**（Apple HIG · App icons）：macOS 26 起图标由系统统一遮罩、生成 Liquid Glass 高光与深色 / 着色外观，所以源文件提供**方形、未遮罩**的图层——背景图层铺满且不透明，**不要自己画圆角、阴影或留白**，也不要提交预遮罩的 `.icns`（macOS 26 会把这类旧式图标缩进灰色圆角底板）。
+`Scripts/build-app.sh` 用 `xcrun actool` 把 `AppIcon.icon` 现编成 `Assets.car`（macOS 26）+ 回退 `AppIcon.icns`（macOS 14 / 15，由 actool 按 Apple 网格生成），`Info.plist` 的 `CFBundleIconFile` / `CFBundleIconName` 都是 `AppIcon`；需要 Xcode 26+。**不要在代码里设置 `NSApp.applicationIconImage`**，那会用平面位图盖掉系统合成的图标。
+改 logo 时：用 Icon Composer 改 `Resources/AppIcon.icon`（或直接换两张图层）→ 跑 `./Scripts/generate-icons.sh` 重新导出母版和 README 效果图 → `swift test` 里的 `AppIconSourceTests` 会校验背景铺满不透明、锁形不贴边。若新图是 AI 生成的「假透明」棋盘格底 / 自带圆角，必须先还原成方形、去掉棋盘格，再拆图层。
 改菜单栏图标时：先改设计稿 `docs/ui-design/08-menubar-icons.html` 并覆盖渲染，再同步 `MenuBarIcon.swift` 的几何参数。
 
 约定：
 
 - **状态图标只画一份，两处共用**（`UI/Design/MenuBarIcon.swift`，由 logo 的「环形锁体 + 锁梁」提炼、代码绘制的模板图；五态：在身边 / 已离开 / 搜索中 / 已暂停 / 已关闭），要一眼看出状态，不直接用品牌 logo。设计稿见 `docs/ui-design/08-menubar-icons.html`。
   菜单栏用 `MenuBarIcon.image(for:)`；面板状态卡经 `UI/Design/StatusIcon.swift` 渲染同一张图，**不要再为面板另选 SF Symbol**（已移除 `ProximityStatus.symbolName`）。
-- **品牌 logo 用于「身份展示」场景**（关于页等），走 `UI/Design/BrandLogo.swift`（`BrandLogoView`），找不到资源时回退 SF Symbol。
+- **品牌 logo 用于「身份展示」场景**（关于页等），走 `UI/Design/BrandLogo.swift`（`BrandLogoView`），取系统合成的应用图标（`NSApplication.applicationIconImage`，与 Dock 里同一张），没打进 App 包的环境（`swift test`）回退 SF Symbol。
 - 菜单栏图标必须是模板图（`isTemplate = true`，只用黑色 + alpha），系统才会按深浅色菜单栏自动着色；`MenuBarIconTests` 已校验。
 
 ## 项目结构

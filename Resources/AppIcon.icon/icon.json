@@ -1,0 +1,34 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.96741,0.49562,0.23236,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "glyph.png",
+          "name" : "glyph",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [ 0, 0 ]
+          }
+        }
+      ],
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "translucency" : { "enabled" : false, "value" : 0.5 }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "background.png",
+          "name" : "background"
+        }
+      ],
+      "shadow" : { "kind" : "none", "opacity" : 0 }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

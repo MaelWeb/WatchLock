@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/logo/AppIcon-master.png" width="128" alt="WatchLock 应用图标">
+  <img src="docs/logo/AppIcon.png" width="128" alt="WatchLock 应用图标">
 
   # WatchLock
 

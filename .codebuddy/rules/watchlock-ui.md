@@ -30,7 +30,7 @@ alwaysApply: false
 | `StatusIcon` | 五态状态图标（复用 `MenuBarIcon`，20pt + 语义色）；**面板里不要另选 SF Symbol** |
 | `SignalMeter` | 4 格信号条，**按当前阈值动态分级** |
 | `MetricRow` | 标签 + 数值（已带 `monospacedDigit`） |
-| `WLButton` | `.primary` / `.secondary` / `.danger` 三档样式 |
+| `WLButton` | `.primary` / `.secondary` / `.danger` 三档样式。**默认横向撑满容器**：放在 `HStack` 里与 `Spacer` 并排时要加 `.fixedSize(horizontal: true, vertical: false)`，否则会变成一条长按钮；`width:` 是**最小宽度**（文案更长会自然撑开），不要再用固定宽度去对齐 |
 | `WLButtonLabel` | 按钮标签外观；`Menu` 等不能直接用 `WLButton` 的控件用它保持同尺寸 |
 | `ThresholdBand` | 在身边 / 已离开 同轴阈值带（带 clamp） |
 | `DeviceRow` | 设备行（信号条 + 副标题 + 操作） |
@@ -43,7 +43,7 @@ alwaysApply: false
 | `OnboardingArt` | 引导顶部线稿插画；阶段由 `OnboardingArtStage.stage(forStep:bluetoothReady:)` 决定 |
 | `RadioCard` | 竖排单选卡 |
 | `SettingsDetail` | 设置详情区统一容器（内边距 + 最小宽度 + 滚动） |
-| `BrandLogo` / `BrandLogoView` / `BrandLockup` | 品牌图标与「图标 + 名称」标识行；**菜单栏仍用状态图标，不用品牌 logo** |
+| `BrandLogo` / `BrandLogoView` / `BrandLockup` | 品牌图标与「图标 + 名称」标识行；**菜单栏仍用状态图标，不用品牌 logo**。取系统合成的应用图标（已含圆角、阴影、四周留白），**不要再叠 `clipShape` / `shadow`**；应用图标源是 `Resources/AppIcon.icon`，图层必须方形、未遮罩，背景铺满且不透明（HIG），**不要提交预遮罩的 `.icns`，也不要设置 `NSApp.applicationIconImage`** |
 | `CardSectionHeader` | 卡片内带图标的小标题 |
 | `CardDivider` | 卡片内分隔线 |
 
@@ -53,6 +53,9 @@ alwaysApply: false
   用 `Toggle(...).labelsHidden()` + 单独的 `Text`（装饰性小字加 `.accessibilityHidden`），开关自带的标题保留给 VoiceOver。
 - **`Menu` 想要和按钮同款外观**：`.menuStyle(.button)` + `.buttonStyle(.bordered)`（+ `.menuIndicator(.hidden)`），
   标签用 `WLButtonLabel`。`.menuStyle(.borderlessButton)` 不会渲染按钮底，宽度也不跟随相邻按钮。
+- **`LabeledContent` / `ValueStepperRow` 只在 `Form` 里左右分列**：放进 `FormCard`（普通 `VStack`）会整体居中；那里用 `HStack { 标签; Spacer; 数值; Stepper }`。
+- **多行「标签 + 滑块 + 数值」要对齐**：用 `Grid` / `GridRow`，不要每行各自一个 `HStack`（标签宽度不同，滑块起点会错开）。
+- **同一张卡里不要叠两层内边距**：`.wlCard()` 已带 12，外面再 `.padding` 会让该卡比相邻卡更高、内容缩进更多。
 - **次要入口菜单**（如「更多」）用 `.menuStyle(.button)` + `.buttonStyle(.plain)` + 自绘标签，
   `.borderlessButton` 自带内边距会让它和卡片边缘对不齐。
 

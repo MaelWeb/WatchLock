@@ -39,7 +39,8 @@ struct WLButton: View {
     var role: WLButtonRole = .secondary
     var help: String?
     var isDisabled = false
-    /// 固定宽度；`nil` 时由外层容器决定（常用于等宽按钮行）。
+    /// 最小宽度；按钮不会比文案更窄（长文案 / 英文会自然撑开，不再被截断）。
+    /// `nil` 时由外层容器决定（常用于等宽按钮行）。
     var width: CGFloat?
     let action: () -> Void
 
@@ -64,11 +65,11 @@ struct WLButton: View {
     var body: some View {
         switch role {
         case .primary:
-            styledButton.buttonStyle(.borderedProminent).frame(width: width)
+            styledButton.buttonStyle(.borderedProminent).modifier(MinWidthFit(width: width))
         case .secondary:
-            styledButton.buttonStyle(.bordered).frame(width: width)
+            styledButton.buttonStyle(.bordered).modifier(MinWidthFit(width: width))
         case .danger:
-            styledButton.buttonStyle(.bordered).tint(WLColor.danger).frame(width: width)
+            styledButton.buttonStyle(.bordered).tint(WLColor.danger).modifier(MinWidthFit(width: width))
         }
     }
 
@@ -88,6 +89,21 @@ struct WLButton: View {
             WLButtonLabel(title, systemImage: systemImage)
         }
         .disabled(isDisabled)
+    }
+}
+
+/// 给了 `width` 就按「最小宽度 + 贴合内容」布局：先把最小宽度算进理想宽度，再禁止横向被拉伸。
+/// 没给 `width` 时不干预，由外层容器决定。
+private struct MinWidthFit: ViewModifier {
+    let width: CGFloat?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let width {
+            content.frame(minWidth: width).fixedSize(horizontal: true, vertical: false)
+        } else {
+            content
+        }
     }
 }
 

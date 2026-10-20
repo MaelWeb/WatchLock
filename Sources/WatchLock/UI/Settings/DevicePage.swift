@@ -16,11 +16,11 @@ struct DevicePage: View {
                 candidateCard
 
                 ScannerStatusBar(
-                isScanning: session.scanner.isScanning,
-                bluetoothTitle: session.bluetoothState.title,
-                deviceCount: candidates.count,
-                discoveryCount: session.scanner.discoveryCount,
-                invalidRSSICount: session.scanner.invalidRSSICount,
+                    isScanning: session.scanner.isScanning,
+                    bluetoothTitle: session.bluetoothState.title,
+                    deviceCount: candidates.count,
+                    discoveryCount: session.scanner.discoveryCount,
+                    invalidRSSICount: session.scanner.invalidRSSICount,
                     message: session.scannerMessage
                 )
 
@@ -43,7 +43,9 @@ struct DevicePage: View {
                     tint: Color.primary
                 )
                 Spacer(minLength: WLSpacing.sm)
+                // 贴合内容宽度：WLButton 默认会撑满剩余空间，放在标题行里会变成一条长按钮。
                 WLButton(String(localized: "重新扫描"), systemImage: "arrow.clockwise") { session.rescan() }
+                    .fixedSize(horizontal: true, vertical: false)
                     .help("重启蓝牙扫描，用于列表长时间为空时")
             }
             Text("按信号强度实时排序，最靠前的那台通常就是你的手表。")
@@ -65,14 +67,18 @@ struct DevicePage: View {
                 .foregroundStyle(settings.boundWatchID == nil ? Color.secondary : WLColor.success)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: WLSpacing.xxs) {
-                Text("已绑定").font(.caption).foregroundStyle(.secondary)
-                Text(settings.boundWatchName ?? String(localized: "尚未绑定手表"))
+                // 未绑定时不能写「已绑定」：标签与内容会互相矛盾。已绑定但没有名称时也不能写「尚未绑定」。
+                Text(settings.boundWatchID == nil ? String(localized: "未绑定") : String(localized: "已绑定"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(boundTitle)
             }
             Spacer(minLength: WLSpacing.sm)
             if settings.boundWatchID != nil {
                 WLButton(String(localized: "解除绑定"), systemImage: "trash", role: .danger) {
                     confirmingUnbind = true
                 }
+                .fixedSize(horizontal: true, vertical: false)
                 .help("解除后需要重新绑定才会继续自动锁定")
             }
         }
@@ -84,6 +90,11 @@ struct DevicePage: View {
         } message: {
             Text("解除后自动锁定会停止，需要重新绑定。")
         }
+    }
+
+    private var boundTitle: String {
+        guard settings.boundWatchID != nil else { return String(localized: "在下方列表中选择你的手表") }
+        return settings.boundWatchName ?? String(localized: "未命名设备")
     }
 
     // MARK: - 候选列表

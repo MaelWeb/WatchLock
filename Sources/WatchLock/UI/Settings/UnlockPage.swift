@@ -51,8 +51,10 @@ struct UnlockPage: View {
                         .help("仅保存在本机钥匙串，不会同步或上传")
                     HStack(spacing: WLSpacing.sm) {
                         WLButton(String(localized: "保存到钥匙串"), systemImage: "key.fill", role: .primary) { save() }
+                            .fixedSize(horizontal: true, vertical: false)
                             .help("以「仅本机解锁时可访问」的方式写入钥匙串")
                         WLButton(String(localized: "清除"), systemImage: "trash", role: .danger) { confirmingClear = true }
+                            .fixedSize(horizontal: true, vertical: false)
                             .help("删除钥匙串中已保存的登录密码")
                         Spacer(minLength: 0)
                     }
