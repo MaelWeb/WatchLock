@@ -14,8 +14,8 @@ struct MenuBarView: View {
     private let panelWidth: CGFloat = 340
 
     var body: some View {
-        // 区块间距 12。状态、扫描告警、主开关合在同一张卡里（设计稿 01-menubar），
-        // 告警行不再漂在卡片之间。
+        // 区块间距 12。标题行（含主开关）、告警、三块指标瓦片按设计稿 D 直接铺在面板上，
+        // 不再套状态卡。
         VStack(alignment: .leading, spacing: WLSpacing.md) {
             status
             // 上下文提示（暂停 / 误锁反馈）在主操作之上，触发时才出现，不占常驻空间。
@@ -36,38 +36,59 @@ struct MenuBarView: View {
 
     // MARK: - 状态
 
+    /// 标题行 + 告警 + 指标瓦片，不再套状态卡容器：层级靠留白，不靠底色（设计稿 D）。
     private var status: some View {
-        StatusCard(
-            status: session.status,
-            title: session.status.title,
-            subtitle: subtitle,
-            tint: statusTint
-        ) {
-            ProximityGauge(
-                rssi: session.smoothedRSSI,
-                nearRSSI: settings.nearRSSI,
-                farRSSI: settings.farRSSI,
-                isArmed: session.status == .near || session.status == .far
-            )
-            HStack(spacing: WLSpacing.sm) {
-                Text(rssiText)
-                    .font(WLFont.body.monospacedDigit())
-                Spacer(minLength: WLSpacing.sm)
-                Text(distanceText)
-                    .font(WLFont.body.monospacedDigit())
+        VStack(alignment: .leading, spacing: WLSpacing.md) {
+            VStack(alignment: .leading, spacing: WLSpacing.sm) {
+                titleRow
+                if let message = warningMessage {
+                    scannerWarning(message)
+                }
             }
-            if let reason = session.lastLockReason, let date = session.lastLockAt {
-                MetricRow(label: String(localized: "上次锁定"), value: LastLockSummary.text(reason: reason, at: date))
+            VStack(alignment: .leading, spacing: WLSpacing.sm) {
+                metricTiles
+                if let reason = session.lastLockReason, let date = session.lastLockAt {
+                    MetricRow(label: String(localized: "上次锁定"), value: LastLockSummary.text(reason: reason, at: date))
+                }
             }
-        } sections: {
-            if let message = warningMessage {
-                CardSection { scannerWarning(message) }
-            }
-            CardSection { masterToggle }
         }
     }
 
-    /// 状态卡内的告警，按优先级只显示一条：
+    /// 状态图标 + 标题 / 设备名在左，主开关在右（开关下方一行小字说明它管什么）。
+    private var titleRow: some View {
+        // 位图图标没有文字基线，顶部对齐（图标高度与标题行高相当）。
+        HStack(alignment: .top, spacing: WLSpacing.sm) {
+            StatusIcon(status: session.status, tint: statusTint)
+            VStack(alignment: .leading, spacing: WLSpacing.xs) {
+                Text(session.status.title).font(WLFont.statusTitle)
+                Text(subtitle).font(WLFont.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: WLSpacing.sm)
+            masterToggle
+        }
+    }
+
+    /// 三块指标：信号 / 距离 / 更新。信号条按当前阈值分级，与是否会锁屏同口径。
+    private var metricTiles: some View {
+        HStack(spacing: WLSpacing.sm) {
+            MetricTile(
+                title: String(localized: "信号"),
+                reading: MenuBarMetrics.signal(rssi: session.smoothedRSSI)
+            ) {
+                SignalMeter(rssi: session.smoothedRSSI, nearRSSI: settings.nearRSSI, farRSSI: settings.farRSSI)
+            }
+            MetricTile(
+                title: String(localized: "距离"),
+                reading: MenuBarMetrics.distance(meters: session.estimatedDistance)
+            )
+            MetricTile(
+                title: String(localized: "更新"),
+                reading: MenuBarMetrics.updated(since: session.lastSeen)
+            )
+        }
+    }
+
+    /// 告警，按优先级只显示一条：
     /// 扫描器自身的问题 > 因会议 / 演示暂缓锁定（安全相关：此刻不会自动锁屏） > 未绑定手表。
     /// 模拟信号期间不提示未绑定（调试流程不需要绑定）。
     private var warningMessage: String? {
@@ -79,11 +100,9 @@ struct MenuBarView: View {
         return nil
     }
 
-    /// 副标题：设备名 · 最后更新时间（原来单独占一行的「最后更新」并到这里，给距离刻度腾位置）。
+    /// 副标题：设备名。「最后更新」已有自己的瓦片。
     private var subtitle: String {
-        let name = settings.boundWatchName ?? String(localized: "尚未绑定手表")
-        guard let date = session.lastSeen else { return name }
-        return String(localized: "\(name) · \(lastSeenText(since: date))更新")
+        settings.boundWatchName ?? String(localized: "尚未绑定手表")
     }
 
     private var statusTint: Color {
@@ -95,24 +114,6 @@ struct MenuBarView: View {
         }
     }
 
-    private var rssiText: String {
-        session.smoothedRSSI < 0
-            ? String(format: "%.0f dBm", session.smoothedRSSI)
-            : String(localized: "无信号")
-    }
-
-    private var distanceText: String {
-        session.estimatedDistance > 0
-            ? String(format: String(localized: "约 %.1f 米"), session.estimatedDistance)
-            : String(localized: "距离未知")
-    }
-
-    private func lastSeenText(since date: Date) -> String {
-        let seconds = Int(Date().timeIntervalSince(date))
-        if seconds < 60 { return String(localized: "\(seconds) 秒前") }
-        return String(localized: "\(seconds / 60) 分钟前")
-    }
-
     private func scannerWarning(_ message: String) -> some View {
         Label(message, systemImage: "exclamationmark.triangle.fill")
             .font(WLFont.caption)
@@ -122,23 +123,12 @@ struct MenuBarView: View {
 
     // MARK: - 主开关与暂停
 
-    /// 文字在左、开关在右（设计稿）。
+    /// 标题行右侧的主开关：开关 + 下方一行小字「自动锁定」。
     ///
-    /// 不能把文字直接放进 `Toggle` 的 label：macOS 上 `.switch` 样式在 Form 之外会把开关
-    /// 紧贴着文字排布，不会自动靠右。所以拆成「可点击的文字 + 隐藏 label 的开关」。
+    /// `Toggle` 的 label 在 `.switch` 样式下会被并排放在开关旁（Form 之外），所以隐藏 label，
+    /// 另放一行小字；小字对辅助功能隐藏，由开关自己的 `启用自动锁定` 朗读。
     private var masterToggle: some View {
-        HStack(spacing: WLSpacing.sm) {
-            // 让整行文字区域也能点击切换；对辅助功能隐藏，由右侧开关本身朗读。
-            Button {
-                setEnabled(!settings.isEnabled)
-            } label: {
-                Text("启用自动锁定")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHidden(true)
-
+        VStack(alignment: .trailing, spacing: WLSpacing.xxs) {
             Toggle("启用自动锁定", isOn: Binding(
                 get: { settings.isEnabled },
                 set: { setEnabled($0) }
@@ -147,8 +137,12 @@ struct MenuBarView: View {
             .toggleStyle(.switch)
             .controlSize(.small)
             .help("关闭后不再自动锁定，菜单栏只显示状态")
+
+            Text("自动锁定")
+                .font(WLFont.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func setEnabled(_ value: Bool) {

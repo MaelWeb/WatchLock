@@ -200,24 +200,17 @@ body {
 }
 .mb-scene { width: 372px; background: linear-gradient(160deg, #dfe7f3, #ccd7e8); border-radius: 10px; overflow: hidden; }
 
-/* 菜单栏面板：同一张卡内分段（状态 / 告警 / 主开关），段间用发丝线 */
-.card.group { padding: 0; }
-.card-sec { padding: 12px; }
-.card-sec.slim { padding: 8px 12px; }
-.card-sec + .card-sec { border-top: 1px solid var(--sep); }
-
-/* 距离刻度（ProximityGauge）：量程 -100…-35 dBm，分区按当前阈值计算。
-   示例阈值 已离开 -70 / 在身边 -55 → 远区 46.2%、过渡区 23.1%、近区其余。
-   .idle = 暂停 / 已关闭 / 搜索中：不会自动锁定，分区转灰，避免用橙色暗示「即将锁屏」。 */
-.gauge-wrap { position: relative; height: 20px; display: flex; align-items: center; }
-.gauge { position: relative; width: 100%; height: 10px; display: flex; }
-.gauge .z { height: 100%; }
-.gauge .z.far  { flex: 0 0 46.2%; border-radius: 5px 0 0 5px; background: rgba(255, 159, 10, 0.38); }
-.gauge .z.mid  { flex: 0 0 23.1%; background: var(--track); }
-.gauge .z.near { flex: 1; border-radius: 0 5px 5px 0; background: rgba(52, 199, 89, 0.38); }
-.gauge.idle .z.far, .gauge.idle .z.near { background: rgba(142, 142, 147, 0.26); }
-.gauge .tick { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text); }
-.gauge-labels { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--secondary); }
+/* 指标瓦片（MetricTile）：菜单栏面板里并排的三块，数字是主角。 */
+.tiles { display: flex; gap: 8px; }
+.tile { flex: 1; min-width: 0; background: var(--fill); border-radius: 10px; padding: 8px 12px; }
+.tile .k { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--secondary); height: 15px; }
+.tile .v { margin-top: 2px; font-size: 17px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .v small { font-size: 11px; font-weight: 400; color: var(--secondary); margin-left: 2px; }
+/* 标题行右侧主开关：开关 + 下方小字 */
+.swcap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.swcap .cap { font-size: 11px; }
+.t-orange { color: var(--orange); }
+.more { font-size: 12px; color: var(--secondary); }
 
 /* 步骤指示器 */
 .steps { display: flex; align-items: flex-start; gap: 4px; }
@@ -259,3 +252,32 @@ body {
 .side-brand img { width: 24px; height: 24px; border-radius: 5px; display: block; }
 .hero-icon.brand img { width: 44px; height: 44px; border-radius: 10px; display: block; }
 .hero-icon.brand { background: none; }
+
+/* ---------- 设置页分组（对应 Form(.grouped)：白底 + 浅灰分组卡，行间发丝线） ---------- */
+.g-sec { margin-bottom: 14px; }
+.g-head { font-size: 13px; font-weight: 600; padding: 0 4px 6px; }
+.g-foot { font-size: 11px; color: var(--secondary); line-height: 1.4; padding: 6px 4px 0; }
+.g-card { background: var(--fill); border-radius: 10px; overflow: hidden; }
+.g-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; min-height: 34px; }
+.g-row + .g-row { border-top: 1px solid var(--sep); }
+.g-row.pad { display: block; padding: 12px; }
+.g-row .mk { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.g-row .v { color: var(--secondary); font-variant-numeric: tabular-nums; }
+.stp { display: inline-flex; flex-direction: column; border: 1px solid rgba(0,0,0,.12); border-radius: 6px; background: rgba(255,255,255,.7); overflow: hidden; font-size: 8px; color: #3c3c43; line-height: 1; }
+.stp i { font-style: normal; width: 18px; height: 11px; display: flex; align-items: center; justify-content: center; }
+.stp i + i { border-top: 1px solid rgba(0,0,0,.1); }
+.legend { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--secondary); }
+.legend .nd { width: 2px; height: 10px; border-radius: 1px; background: var(--blue); }
+
+/* ---------- 引导（插画顶带 + 圆点） ---------- */
+.ob-art { padding: 30px 0 12px; background: linear-gradient(#f1f6ff, #e8f0fc); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ob-art svg { display: block; }
+.ob-dots { display: flex; gap: 6px; align-items: center; }
+.ob-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--track); }
+.ob-dots i.on { width: 16px; border-radius: 3px; background: var(--blue); }
+.ob-dots i.done { background: var(--green); }
+.ob-body { padding: 14px 56px 0; min-height: 214px; }
+.ob-body h2 { margin: 0; font-size: 15px; font-weight: 600; text-align: center; }
+.ob-body .eyebrow { text-align: center; font-size: 11px; color: var(--secondary); margin-bottom: 4px; }
+.ob-body .lead { text-align: center; font-size: 13px; margin-top: 4px; line-height: 1.5; }
+.ob-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--sep); }

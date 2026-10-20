@@ -27,6 +27,8 @@ enum WLRadius {
 enum WLFont {
     /// 状态标题：15 semibold（`.title3`）。
     static let statusTitle = Font.title3.weight(.semibold)
+    /// 指标瓦片里的大数字：17 semibold（macOS 的 `.title2`）。
+    static let metric = Font.title2.weight(.semibold)
     /// 正文 / 主要数值：13（`.body`）。
     static let body = Font.body
     /// 次要说明：11（`.subheadline`），通常配合 `.secondary`。
@@ -92,11 +94,5 @@ extension View {
             tint: tint,
             insets: EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
         ))
-    }
-
-    /// 多段内容共用一张卡底：本身不留内边距，各段自带留白，段与段之间用 `CardSection` 的发丝线分隔
-    /// （系统设置 / 控制中心的分组观感）。
-    func wlCardGroup(tint: WLCardTint = .plain) -> some View {
-        modifier(WLCardModifier(tint: tint, insets: EdgeInsets()))
     }
 }

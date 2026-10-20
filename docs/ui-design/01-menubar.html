@@ -30,29 +30,18 @@
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
-          <div class="card group">
-            <div class="card-sec">
-              <div class="row top" style="gap:8px">
-                <svg class="ic state" style="color:#34c759"><use href="#s-near"/></svg>
-                <div class="stack gap4" style="flex:1">
-                  <div class="h">手表在身边</div>
-                  <div class="sub">Apple Watch · 12 秒前更新</div>
-                </div>
-              </div>
-              <div class="mt12">
-                <div class="gauge-wrap"><div class="gauge"><i class="z far"></i><i class="z mid"></i><i class="z near"></i><b class="tick" style="left:80%"></b></div></div>
-                <div class="gauge-labels"><span>已离开</span><span>在身边</span></div>
-              </div>
-              <div class="row mt8" style="gap:8px">
-                <div class="label num">-48 dBm</div>
-                <div class="sp"></div>
-                <div class="label num">约 0.6 米</div>
-              </div>
-            </div>
-            <div class="card-sec slim">
-              <div class="row"><div class="label" style="flex:1">启用自动锁定</div><div class="sw"><i></i></div></div>
-            </div>
+          <div class="row top" style="gap:8px">
+            <svg class="ic state" style="color:#34c759"><use href="#s-near"/></svg>
+            <div class="stack gap4" style="flex:1"><div class="h">手表在身边</div><div class="sub">Apple Watch</div></div>
+            <div class="swcap"><div class="sw"><i></i></div><div class="cap">自动锁定</div></div>
           </div>
+
+          <div class="tiles mt12">
+            <div class="tile"><div class="k"><span>信号</span><div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div></div><div class="v">-48<small>dBm</small></div></div>
+            <div class="tile"><div class="k"><span>距离</span></div><div class="v">0.6<small>米</small></div></div>
+            <div class="tile"><div class="k"><span>更新</span></div><div class="v">12<small>秒前</small></div></div>
+          </div>
+
 
           <div class="row mt12" style="gap:8px">
             <div class="btn" style="flex:1"><svg class="ic"><use href="#lock"/></svg>立即锁定</div>
@@ -61,15 +50,12 @@
           </div>
 
           <div class="divider" style="margin:12px 0 0"></div>
-          <div class="row mt8">
-            <div style="font-size:12px;color:#6e6e73">更多 ⌄</div>
-            <div class="sp"></div>
-          </div>
+          <div class="row mt8"><div class="more">更多 ⌄</div><div class="sp"></div></div>
         </div>
       </div>
     </div>
   </div>
-  <div class="caption">常态：状态 + 距离刻度 + 主开关合成一张卡</div>
+  <div class="caption">常态：标题行（含主开关）+ 三块指标瓦片，不再套状态卡</div>
 </div>
 
 <!-- 场景 2：暂停中 -->
@@ -80,28 +66,16 @@
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
-          <div class="card group">
-            <div class="card-sec">
-              <div class="row top" style="gap:8px">
-                <svg class="ic state" style="color:#8e8e93"><use href="#s-paused"/></svg>
-                <div class="stack gap4" style="flex:1">
-                  <div class="h">已暂停自动锁定</div>
-                  <div class="sub">Apple Watch · 3 秒前更新</div>
-                </div>
-              </div>
-              <div class="mt12">
-                <div class="gauge-wrap"><div class="gauge idle"><i class="z far"></i><i class="z mid"></i><i class="z near"></i><b class="tick" style="left:60%"></b></div></div>
-                <div class="gauge-labels"><span>已离开</span><span>在身边</span></div>
-              </div>
-              <div class="row mt8" style="gap:8px">
-                <div class="label num">-61 dBm</div>
-                <div class="sp"></div>
-                <div class="label num">约 1.4 米</div>
-              </div>
-            </div>
-            <div class="card-sec slim">
-              <div class="row"><div class="label" style="flex:1">启用自动锁定</div><div class="sw"><i></i></div></div>
-            </div>
+          <div class="row top" style="gap:8px">
+            <svg class="ic state" style="color:#8e8e93"><use href="#s-paused"/></svg>
+            <div class="stack gap4" style="flex:1"><div class="h">已暂停自动锁定</div><div class="sub">Apple Watch</div></div>
+            <div class="swcap"><div class="sw"><i></i></div><div class="cap">自动锁定</div></div>
+          </div>
+
+          <div class="tiles mt12">
+            <div class="tile"><div class="k"><span>信号</span><div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class=""></span></div></div><div class="v">-61<small>dBm</small></div></div>
+            <div class="tile"><div class="k"><span>距离</span></div><div class="v">1.4<small>米</small></div></div>
+            <div class="tile"><div class="k"><span>更新</span></div><div class="v">3<small>秒前</small></div></div>
           </div>
 
           <div class="card warn mt12" style="padding:8px 12px">
@@ -113,7 +87,6 @@
               <div class="btn sm">恢复</div>
             </div>
           </div>
-
           <div class="row mt12" style="gap:8px">
             <div class="btn" style="flex:1"><svg class="ic"><use href="#lock"/></svg>立即锁定</div>
             <div class="btn" style="flex:1"><svg class="ic"><use href="#pause"/></svg>暂停</div>
@@ -121,12 +94,12 @@
           </div>
 
           <div class="divider" style="margin:12px 0 0"></div>
-          <div class="row mt8"><div style="font-size:12px;color:#6e6e73">更多 ⌄</div><div class="sp"></div></div>
+          <div class="row mt8"><div class="more">更多 ⌄</div><div class="sp"></div></div>
         </div>
       </div>
     </div>
   </div>
-  <div class="caption">暂停中：刻度转灰（此刻不会自动锁）+ 橙色状态条</div>
+  <div class="caption">暂停中：橙色状态条在瓦片之下，触发时才出现</div>
 </div>
 
 <!-- 场景 3：刚锁屏 / 误锁反馈 -->
@@ -137,46 +110,22 @@
       <div class="pop-wrap">
         <div class="arrow"></div>
         <div class="popover">
-          <div class="card group">
-            <div class="card-sec">
-              <div class="row top" style="gap:8px">
-                <svg class="ic state" style="color:#ff9f0a"><use href="#s-far"/></svg>
-                <div class="stack gap4" style="flex:1">
-                  <div class="h">手表已离开</div>
-                  <div class="sub">Apple Watch · 1 分钟前更新</div>
-                </div>
-              </div>
-              <div class="mt12">
-                <div class="gauge-wrap"><div class="gauge"><i class="z far"></i><i class="z mid"></i><i class="z near"></i><b class="tick" style="left:33.8%"></b></div></div>
-                <div class="gauge-labels"><span>已离开</span><span>在身边</span></div>
-              </div>
-              <div class="row mt8" style="gap:8px">
-                <div class="label num">-78 dBm</div>
-                <div class="sp"></div>
-                <div class="label num">约 4.2 米</div>
-              </div>
-              <div class="row mt8" style="gap:8px"><div class="cap">上次锁定</div><div class="sp"></div><div class="cap num">14:05 · 超出距离</div></div>
-            </div>
-            <div class="card-sec slim">
-              <div class="row" style="gap:6px">
-                <svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg>
-                <div class="cap" style="color:#ff9f0a">蓝牙扫描中断，正在重试</div>
-              </div>
-            </div>
-            <div class="card-sec slim">
-              <div class="row"><div class="label" style="flex:1">启用自动锁定</div><div class="sw"><i></i></div></div>
-            </div>
+          <div class="row top" style="gap:8px">
+            <svg class="ic state" style="color:#ff9f0a"><use href="#s-far"/></svg>
+            <div class="stack gap4" style="flex:1"><div class="h">手表已离开</div><div class="sub">Apple Watch</div></div>
+            <div class="swcap"><div class="sw"><i></i></div><div class="cap">自动锁定</div></div>
           </div>
-
+          <div class="row mt8" style="gap:6px"><svg class="ic t-orange"><use href="#warn"/></svg><div class="cap t-orange">蓝牙扫描中断，正在重试</div></div>
+          <div class="tiles mt12">
+            <div class="tile"><div class="k"><span>信号</span><div class="meter"><span class="warn"></span><span class=""></span><span class=""></span><span class=""></span></div></div><div class="v">-78<small>dBm</small></div></div>
+            <div class="tile"><div class="k"><span>距离</span></div><div class="v">4.2<small>米</small></div></div>
+            <div class="tile"><div class="k"><span>更新</span></div><div class="v">1<small>分钟前</small></div></div>
+          </div>
+          <div class="row mt8"><div class="cap">上次锁定</div><div class="sp"></div><div class="cap num">14:05 · 超出距离</div></div>
           <div class="card warn mt12" style="padding:8px 12px">
-            <div class="row" style="gap:8px">
-              <svg class="ic" style="color:#ff9f0a"><use href="#hand"/></svg>
-              <div class="cap" style="flex:1">刚才这次是误锁？</div>
-              <div class="btn sm">记为误锁</div>
-            </div>
+            <div class="row" style="gap:8px"><svg class="ic t-orange"><use href="#hand"/></svg><div class="cap" style="flex:1">刚才这次是误锁？</div><div class="btn sm">记为误锁</div></div>
           </div>
           <div class="cap mt8">已记录误锁反馈：已离开 -70 → -75 dBm，等待 5 → 8 秒</div>
-
           <div class="row mt12" style="gap:8px">
             <div class="btn" style="flex:1"><svg class="ic"><use href="#lock"/></svg>立即锁定</div>
             <div class="btn" style="flex:1"><svg class="ic"><use href="#pause"/></svg>暂停</div>
@@ -184,14 +133,12 @@
           </div>
 
           <div class="divider" style="margin:12px 0 0"></div>
-          <div class="row mt8"><div style="font-size:12px;color:#6e6e73">更多 ⌄</div><div class="sp"></div>
-            <div class="cap" style="color:#ff9f0a">模拟：-85 dBm</div>
-          </div>
+          <div class="row mt8"><div class="more">更多 ⌄</div><div class="sp"></div><div class="cap t-orange">模拟：-85 dBm</div></div>
         </div>
       </div>
     </div>
   </div>
-  <div class="caption">异常：告警并入卡内；误锁反馈仅触发时出现</div>
+  <div class="caption">最坏叠加：告警 + 上次锁定 + 误锁反馈；层级靠留白，不靠底色</div>
 </div>
 
 </body>

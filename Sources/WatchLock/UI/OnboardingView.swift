@@ -36,23 +36,17 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            hero
-            VStack(alignment: .leading, spacing: 0) {
-                StepIndicator(titles: Step.allCases.map(\.title), current: step.rawValue)
+            artBand
+            ScrollView {
+                stepContent
+                    .frame(maxWidth: Layout.contentWidth)
                     .padding(.vertical, WLSpacing.md)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("第 \(step.rawValue + 1) 步，共 \(Step.allCases.count) 步：\(step.title)")
-                Divider()
-                ScrollView {
-                    stepContent
-                        .padding(.vertical, WLSpacing.md)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-                Divider()
-                footer
-                    .padding(.vertical, WLSpacing.md)
+                    .frame(maxWidth: .infinity, alignment: .top)
             }
-            .padding(.horizontal, WLSpacing.lg)
+            Divider()
+            footer
+                .padding(.vertical, WLSpacing.md)
+                .padding(.horizontal, WLSpacing.lg)
         }
         .frame(minWidth: 560, minHeight: 470)
         .onChange(of: session.bluetoothState) { _, newState in
@@ -63,32 +57,58 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Hero
+    private enum Layout {
+        /// 正文限宽：窗口放大时内容不被拉得过长，标题与说明保持居中阅读。
+        static let contentWidth: CGFloat = 460
+        static let artHeight: CGFloat = 84
+    }
 
-    /// 品牌区：图标 + 一句话价值主张（业界首启窗的通用做法，替代裸标题）。
-    private var hero: some View {
-        HStack(spacing: WLSpacing.md) {
-            // 用品牌图标替代临时的渐变方块 + SF Symbol，首启第一眼就建立品牌认知。
-            BrandLogoView(size: 44)
-                .shadow(radius: 0)
-            VStack(alignment: .leading, spacing: WLSpacing.xxs) {
-                Text("欢迎使用 \(BrandLogo.name)")
-                    .font(.title3.bold())
-                Text("戴上手表走开，Mac 自动锁屏；回来自动唤醒。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    // MARK: - 插画顶带
+
+    /// 顶带：一幅「Mac — 信号 — 手表」线稿 + 步骤圆点。
+    ///
+    /// 插画随步骤变化（待授权 / 搜索中 / 就绪），替代原来每一步都重复的「欢迎」条与独立步骤条：
+    /// 上半屏不再空着，窗口也多出一截给内容。背景忽略顶部安全区，品牌色延伸到窗口最上沿，
+    /// 红绿灯悬浮其上。依据与备选方案见 `docs/ui-design/.scratch/INDEX.md`。
+    private var artBand: some View {
+        VStack(spacing: WLSpacing.sm) {
+            OnboardingArt(stage: artStage)
+                .frame(height: Layout.artHeight)
+            StepIndicator(titles: Step.allCases.map(\.title), current: step.rawValue)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("第 \(step.rawValue + 1) 步，共 \(Step.allCases.count) 步：\(step.title)")
         }
         .padding(.top, WLSpacing.sm) // 安全区已避开红绿灯，这里只做节奏
         .padding(.bottom, WLSpacing.md)
-        .padding(.horizontal, WLSpacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // 背景忽略顶部安全区：品牌色延伸到窗口最上沿，红绿灯悬浮其上，
-        // 不再出现「灰色系统标题条 + 下方色块」的割裂感。
+        .frame(maxWidth: .infinity)
         .background(
             WLColor.accent.opacity(0.07)
                 .ignoresSafeArea(.container, edges: .top)
         )
+    }
+
+    private var artStage: OnboardingArtStage {
+        OnboardingArtStage.stage(forStep: step.rawValue, bluetoothReady: session.bluetoothState == .poweredOn)
+    }
+
+    /// 步骤标题 + 说明，统一居中。
+    private func header(_ title: String, lead: String? = nil, eyebrow: String? = nil) -> some View {
+        VStack(spacing: WLSpacing.xs) {
+            if let eyebrow {
+                Text(eyebrow)
+                    .font(WLFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+            if let lead {
+                Text(lead)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - 步骤 1：蓝牙权限（预说明屏）
@@ -104,12 +124,11 @@ struct OnboardingView: View {
 
     private var permissionStep: some View {
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            Text("先授权蓝牙")
-                .font(.title3.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
-            Text("WatchLock 靠手表的蓝牙信号判断你在不在电脑旁，没有蓝牙它无法工作。")
-                .fixedSize(horizontal: false, vertical: true)
-
+            header(
+                String(localized: "先授权蓝牙"),
+                lead: String(localized: "WatchLock 靠手表的蓝牙信号判断你在不在电脑旁，没有蓝牙它无法工作。"),
+                eyebrow: String(localized: "欢迎使用 \(BrandLogo.name)")
+            )
             statusCard
 
             DisclosureGroup("为什么需要蓝牙权限？") {
@@ -182,11 +201,10 @@ struct OnboardingView: View {
 
     private var deviceStep: some View {
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            Text("选一台是你的手表")
-                .font(.title3.weight(.semibold))
-                .accessibilityAddTraits(.isHeader)
-            Text("手表戴在手腕上贴近 Mac，信号最强那台通常就是它。广播不带名字是 Apple 设备的常态。")
-                .fixedSize(horizontal: false, vertical: true)
+            header(
+                String(localized: "选一台是你的手表"),
+                lead: String(localized: "手表戴在手腕上贴近 Mac，信号最强那台通常就是它。广播不带名字是 Apple 设备的常态。")
+            )
 
             if currentDevices.isEmpty {
                 EmptyStateView(
@@ -251,24 +269,11 @@ struct OnboardingView: View {
 
     private var readyStep: some View {
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            HStack(spacing: WLSpacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(WLColor.success.opacity(0.14))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: "checkmark")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(WLColor.success)
-                }
-                .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: WLSpacing.xxs) {
-                    Text("一切就绪")
-                        .font(.title3.weight(.semibold))
-                        .accessibilityAddTraits(.isHeader)
-                    Text("已绑定 \(settings.boundWatchName ?? "Apple Watch") · 默认阈值：在身边 \(settings.nearRSSI) / 已离开 \(settings.farRSSI) dBm")
-                        .font(.callout)
-                }
-            }
+            // 对勾已由顶部插画（手表角标）表达，这里只留标题与摘要，不再重复画一个大勾。
+            header(
+                String(localized: "一切就绪"),
+                lead: String(localized: "已绑定 \(settings.boundWatchName ?? "Apple Watch") · 默认阈值：在身边 \(settings.nearRSSI) / 已离开 \(settings.farRSSI) dBm")
+            )
 
             // HIG：引导里只保留真正必要的动作。解锁只能由系统完成，这是用户唯一还要去系统做的事。
             HStack(spacing: WLSpacing.md) {
@@ -286,6 +291,8 @@ struct OnboardingView: View {
                 WLButton(String(localized: "打开系统设置")) {
                     NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension")!)
                 }
+                // 按内容取宽：WLButton 的标签默认撑满可用宽度，会把左侧说明挤成两行。
+                .fixedSize(horizontal: true, vertical: false)
             }
             .wlCard()
 

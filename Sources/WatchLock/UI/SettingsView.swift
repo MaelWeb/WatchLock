@@ -168,16 +168,36 @@ private struct GeneralPage: View {
                     currentRSSI: session.smoothedRSSI
                 )
                 .padding(.vertical, WLSpacing.xs)
-                Stepper("在身边 \(settings.nearRSSI) dBm", value: nearBinding, in: ThresholdMath.nearRange)
-                    .help("信号强于该值判定为「在身边」")
-                Stepper("已离开 \(settings.farRSSI) dBm", value: farBinding, in: ThresholdMath.farRange)
-                    .help("信号弱于该值并持续设定秒数后锁定")
-                Stepper("离开后等待 \(Int(settings.farDwell)) 秒再锁定",
-                        value: $settings.farDwell, in: 0 ... 30, step: 1)
-                    .help("避免路过时信号抖动导致误锁")
-                Stepper("信号丢失 \(Int(settings.signalLostTimeout)) 秒视为离开",
-                        value: $settings.signalLostTimeout, in: 3 ... 60, step: 1)
-                    .help("手表休眠或被系统节流时会收不到广播")
+                ValueStepperRow(
+                    title: String(localized: "在身边"),
+                    value: nearBinding,
+                    range: ThresholdMath.nearRange,
+                    valueText: ValueFormat.dBm(settings.nearRSSI),
+                    marker: WLColor.success,
+                    help: String(localized: "信号强于该值判定为「在身边」")
+                )
+                ValueStepperRow(
+                    title: String(localized: "已离开"),
+                    value: farBinding,
+                    range: ThresholdMath.farRange,
+                    valueText: ValueFormat.dBm(settings.farRSSI),
+                    marker: WLColor.warning,
+                    help: String(localized: "信号弱于该值并持续设定秒数后锁定")
+                )
+                ValueStepperRow(
+                    title: String(localized: "离开后等待"),
+                    value: $settings.farDwell,
+                    range: 0 ... 30,
+                    valueText: ValueFormat.seconds(settings.farDwell),
+                    help: String(localized: "避免路过时信号抖动导致误锁")
+                )
+                ValueStepperRow(
+                    title: String(localized: "信号丢失视为离开"),
+                    value: $settings.signalLostTimeout,
+                    range: 3 ... 60,
+                    valueText: ValueFormat.seconds(settings.signalLostTimeout),
+                    help: String(localized: "手表休眠或被系统节流时会收不到广播")
+                )
                 Toggle("收不到信号时按「已离开」锁定", isOn: $settings.lockOnSignalLoss)
                     .help("关闭时长时间无信号仍保持解锁")
                 Text(thresholdHint)
@@ -206,18 +226,25 @@ private struct GeneralPage: View {
                 Toggle("会议 / 演示期间暂缓锁定", isOn: $settings.meetingExemptionEnabled)
                     .help("有应用阻止显示器睡眠（视频会议、全屏演示等）时，先不锁屏，结束后补锁")
                 if settings.meetingExemptionEnabled {
-                    Stepper("最长暂缓 \(settings.meetingMaxDeferralMinutes) 分钟，到点必锁",
-                            value: $settings.meetingMaxDeferralMinutes,
-                            in: SettingsStore.Defaults.meetingMaxDeferralRange, step: 5)
-                        .help("硬上限：即使会议仍在进行也会锁定，避免锁屏长期失效")
+                    ValueStepperRow(
+                        title: String(localized: "最长暂缓（到点必锁）"),
+                        value: $settings.meetingMaxDeferralMinutes,
+                        range: SettingsStore.Defaults.meetingMaxDeferralRange,
+                        step: 5,
+                        valueText: ValueFormat.minutes(settings.meetingMaxDeferralMinutes),
+                        help: String(localized: "硬上限：即使会议仍在进行也会锁定，避免锁屏长期失效")
+                    )
                 }
                 Toggle("手动解锁后手表仍在远处时重新锁定", isOn: $settings.rearmAfterManualUnlock)
                     .help("例如手表在充电时你用密码解锁；键鼠空闲后会再锁一次")
                 if settings.rearmAfterManualUnlock {
-                    Stepper("键鼠空闲 \(settings.rearmIdleMinutes) 分钟后重新锁定",
-                            value: $settings.rearmIdleMinutes,
-                            in: SettingsStore.Defaults.rearmIdleRange)
-                        .help("按键鼠空闲计时，不会在你正在操作时突然锁屏")
+                    ValueStepperRow(
+                        title: String(localized: "键鼠空闲后重新锁定"),
+                        value: $settings.rearmIdleMinutes,
+                        range: SettingsStore.Defaults.rearmIdleRange,
+                        valueText: ValueFormat.minutes(settings.rearmIdleMinutes),
+                        help: String(localized: "按键鼠空闲计时，不会在你正在操作时突然锁屏")
+                    )
                 }
                 Text(exceptionsHint)
                     .font(.caption)

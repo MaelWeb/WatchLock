@@ -1,46 +1,30 @@
 import SwiftUI
 
-/// 引导步骤指示器：圆点 + 连接线 + 步骤名。
+/// 引导步骤指示器：一排圆点，当前步骤拉长成胶囊，已完成为绿点。
+///
+/// 放在内容区底部、按钮行之上。比原先「圆点 + 连接线 + 步骤名」的顶栏更轻，
+/// 把窗口上半部分让给插画与内容；步骤名仅保留给 VoiceOver（见调用处的 accessibilityLabel）。
 struct StepIndicator: View {
     let titles: [String]
     let current: Int
 
-    var body: some View {
-        HStack(alignment: .top, spacing: WLSpacing.xs) {
-            ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
-                VStack(spacing: WLSpacing.xxs) {
-                    ZStack {
-                        Circle()
-                            .fill(fill(index))
-                            .frame(width: 18, height: 18)
-                        if index < current {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                                .accessibilityHidden(true)
-                        } else {
-                            Text("\(index + 1)")
-                                .font(.caption2.bold())
-                                .foregroundStyle(index == current ? Color.white : Color.secondary)
-                        }
-                    }
-                    Text(title)
-                        .font(.caption2)
-                        .foregroundStyle(index == current ? Color.primary : Color.secondary)
-                }
-                .accessibilityElement()
-                .accessibilityLabel("第 \(index + 1) 步 \(title)")
-                .accessibilityValue(index == current ? String(localized: "当前步骤") : (index < current ? String(localized: "已完成") : String(localized: "未开始")))
+    private enum Metrics {
+        static let dot: CGFloat = 6
+        static let currentWidth: CGFloat = 16
+    }
 
-                if index < titles.count - 1 {
-                    Capsule(style: .continuous)
-                        .fill(index < current ? WLColor.success.opacity(0.6) : WLColor.track)
-                        .frame(height: 2)
-                        .padding(.top, 8)
-                        .accessibilityHidden(true)
-                }
+    var body: some View {
+        HStack(spacing: WLSpacing.sm - WLSpacing.xxs) {
+            ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
+                Capsule(style: .continuous)
+                    .fill(fill(index))
+                    .frame(width: index == current ? Metrics.currentWidth : Metrics.dot, height: Metrics.dot)
+                    .accessibilityElement()
+                    .accessibilityLabel("第 \(index + 1) 步 \(title)")
+                    .accessibilityValue(index == current ? String(localized: "当前步骤") : (index < current ? String(localized: "已完成") : String(localized: "未开始")))
             }
         }
+        .animation(.easeOut(duration: 0.2), value: current)
         .frame(maxWidth: .infinity)
     }
 

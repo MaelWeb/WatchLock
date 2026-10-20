@@ -105,12 +105,15 @@ struct ThresholdBand: View {
 
     // MARK: 图例
 
+    /// 图例只解释「蓝色竖线 = 当前信号」和间隔。两个阈值的数值由下方的 `ValueStepperRow` 给出
+    /// （行首圆点与把手同色），不在这里重复写一遍。
     private var legend: some View {
         HStack(spacing: WLSpacing.sm) {
-            legendDot(WLColor.success)
-            Text("在身边 \(nearRSSI) dBm").monospacedDigit()
-            legendDot(WLColor.warning)
-            Text("已离开 \(farRSSI) dBm").monospacedDigit()
+            Capsule(style: .continuous)
+                .fill(WLColor.accent)
+                .frame(width: 2, height: 10)
+                .accessibilityHidden(true)
+            Text(currentText).monospacedDigit()
             Spacer(minLength: WLSpacing.sm)
             Text("间隔 \(gap) dBm")
                 .monospacedDigit()
@@ -119,11 +122,11 @@ struct ThresholdBand: View {
         .font(.caption)
     }
 
-    private func legendDot(_ color: Color) -> some View {
-        Circle()
-            .fill(color)
-            .frame(width: 7, height: 7)
-            .accessibilityHidden(true)
+    /// 「当前 −48 dBm · 在身边」；信号无效（含 macOS 回传的 127）时只说无信号，不编造数值。
+    private var currentText: String {
+        guard currentRSSI < 0 else { return String(localized: "当前：无信号") }
+        let zone = ProximityZone.classify(rssi: currentRSSI, nearRSSI: nearRSSI, farRSSI: farRSSI)
+        return String(localized: "当前 \(Int(currentRSSI.rounded())) dBm · \(zone.title)")
     }
 
     private func handle(color: Color, x: CGFloat, help: String) -> some View {

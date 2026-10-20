@@ -15,9 +15,8 @@ alwaysApply: false
 - 间距：`WLSpacing.xxs/xs/sm/md/lg/xl/xxl` = 2/4/8/12/16/24/32
 - 圆角：`WLRadius.sm/md/lg` = 6/10/14
 - 颜色：`WLColor.success/warning/danger/neutral/accent`（**禁止**直接写 `.green` / `.orange` / `.red`）
-- 卡片：`.wlCard()`；危险卡片：`.wlCard(tint: .danger)`；单行内容（开关行、提示条）用
-  `.wlCard(horizontal: WLSpacing.md, vertical: WLSpacing.sm)`（横 12 / 竖 8）；
-  多段内容共用一张卡底用 `.wlCardGroup()`（自身无内边距，各段自带留白，段间用 `CardSection` 发丝线）
+- 卡片：`.wlCard()`；危险卡片：`.wlCard(tint: .danger)`；单行内容（开关行、提示条、指标瓦片）用
+  `.wlCard(horizontal: WLSpacing.md, vertical: WLSpacing.sm)`（横 12 / 竖 8）
 - 字体：`WLFont.statusTitle`（15）/ `WLFont.body`（13）/ `WLFont.caption`（11，配 `.secondary`）。
   **不要直接写 `.headline` / `.caption` 去凑设计稿字号**：macOS 上它们是 13 / 10，会整体偏小
 
@@ -27,11 +26,9 @@ alwaysApply: false
 
 | 组件 | 用途 |
 | --- | --- |
-| `StatusCard` | 状态卡（状态图标 + 标题 + 副标题 + 指标）；`sections:` 可在同一张卡内追加分段 |
-| `CardSection` | 同一张卡内的一段（上方发丝线 + 横 12 / 竖 8 留白）；告警、开关放进状态卡时用，**不要再单独套 `.wlCard`** |
+| `MetricTile` / `MenuBarMetrics` | 指标瓦片（小标签 + 17 大数字 + 11 小单位，标签行可放附件如信号条）；读数换算一律走 `MenuBarMetrics`（无效值 →「—」） |
 | `StatusIcon` | 五态状态图标（复用 `MenuBarIcon`，20pt + 语义色）；**面板里不要另选 SF Symbol** |
 | `SignalMeter` | 4 格信号条，**按当前阈值动态分级** |
-| `ProximityGauge` | 只读距离刻度（已离开 / 过渡 / 在身边 + RSSI 指针），分区与 `SignalMeter.level` 同口径；`isArmed = false` 时转灰 |
 | `MetricRow` | 标签 + 数值（已带 `monospacedDigit`） |
 | `WLButton` | `.primary` / `.secondary` / `.danger` 三档样式 |
 | `WLButtonLabel` | 按钮标签外观；`Menu` 等不能直接用 `WLButton` 的控件用它保持同尺寸 |
@@ -41,7 +38,9 @@ alwaysApply: false
 | `EmptyStateView` | 统一空态（基于 `ContentUnavailableView`） |
 | `ScannerStatusBar` | 扫描 / 蓝牙 / 广播数状态行 |
 | `FormCard` | 非 `Form` 页面的分组容器 |
-| `StepIndicator` | 引导步骤进度 |
+| `ValueStepperRow` | `Form` 里的数值项：标签 … 数值 + 步进器；**数值项一律用它，不要把数字写进 `Stepper` 的标签句子**；单位文案走 `ValueFormat` |
+| `StepIndicator` | 引导步骤进度（圆点，当前步骤为胶囊） |
+| `OnboardingArt` | 引导顶部线稿插画；阶段由 `OnboardingArtStage.stage(forStep:bluetoothReady:)` 决定 |
 | `RadioCard` | 竖排单选卡 |
 | `SettingsDetail` | 设置详情区统一容器（内边距 + 最小宽度 + 滚动） |
 | `BrandLogo` / `BrandLogoView` / `BrandLockup` | 品牌图标与「图标 + 名称」标识行；**菜单栏仍用状态图标，不用品牌 logo** |
@@ -50,8 +49,8 @@ alwaysApply: false
 
 ## 2.1 macOS 控件陷阱（菜单栏面板踩过）
 
-- **`Toggle` 在 `Form` 之外不会自动靠右**：`.switch` 样式会让开关紧贴文字。要「文字在左、开关在右」，
-  拆成 `HStack { 文字; Toggle(...).labelsHidden() }`，并给开关保留 `accessibilityLabel`。
+- **`Toggle` 在 `Form` 之外不会自动靠右**：`.switch` 样式会让开关紧贴文字。要把文字和开关分开摆，
+  用 `Toggle(...).labelsHidden()` + 单独的 `Text`（装饰性小字加 `.accessibilityHidden`），开关自带的标题保留给 VoiceOver。
 - **`Menu` 想要和按钮同款外观**：`.menuStyle(.button)` + `.buttonStyle(.bordered)`（+ `.menuIndicator(.hidden)`），
   标签用 `WLButtonLabel`。`.menuStyle(.borderlessButton)` 不会渲染按钮底，宽度也不跟随相邻按钮。
 - **次要入口菜单**（如「更多」）用 `.menuStyle(.button)` + `.buttonStyle(.plain)` + 自绘标签，
@@ -65,8 +64,8 @@ alwaysApply: false
   `NSVisualEffectView` 去盖它（Apple：popover 上应移除自定义背景，让系统材质生效）。
 - **内容层不用 `glassEffect` / `Glass`**：卡片是内容，沿用 `.wlCard()` 的 `.quaternary` 填充；玻璃只留给系统控件层，不叠玻璃。
 - **`Info.plist` 不设 `UIDesignRequiresCompatibility`**（设为 YES 会强制旧外观）；发布流水线用 `Scripts/verify-liquid-glass-sdk.sh` 校验 SDK ≥ 26。
-- **半透明层要响应「提高对比度」**：读 `@Environment(\.colorSchemeContrast)`，参考 `ProximityGaugeMath.opacity(increasedContrast:)`
-  把透明度换算放进纯函数并写单测；默认档位必须与旧外观一致。
+- **自绘半透明层要响应「提高对比度」**：读 `@Environment(\.colorSchemeContrast)`，把透明度换算放进纯函数并写单测，
+  默认档位必须与旧外观一致。（面板目前没有自绘半透明层，瓦片用 `.quaternary` 标准填充。）
 - 以上只覆盖菜单栏面板；设置 / 引导窗口的材质另行评估。
 
 ## 3. 容器规则（硬性）

@@ -23,9 +23,13 @@ struct UnlockPage: View {
                 Text(settings.unlockStrategy.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Stepper("唤醒后宽限 \(Int(settings.unlockGraceAfterWake)) 秒（避免刚唤醒就误锁）",
-                        value: $settings.unlockGraceAfterWake, in: 0 ... 30, step: 1)
-                    .help("刚唤醒的一小段时间内不判定为离开")
+                ValueStepperRow(
+                    title: String(localized: "唤醒后宽限"),
+                    value: $settings.unlockGraceAfterWake,
+                    range: 0 ... 30,
+                    valueText: ValueFormat.seconds(settings.unlockGraceAfterWake),
+                    help: String(localized: "刚唤醒的一小段时间内不判定为离开，避免刚唤醒就误锁")
+                )
             }
 
             Section {
