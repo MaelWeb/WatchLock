@@ -93,4 +93,10 @@ extension View {
             insets: EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
         ))
     }
+
+    /// 多段内容共用一张卡底：本身不留内边距，各段自带留白，段与段之间用 `CardSection` 的发丝线分隔
+    /// （系统设置 / 控制中心的分组观感）。
+    func wlCardGroup(tint: WLCardTint = .plain) -> some View {
+        modifier(WLCardModifier(tint: tint, insets: EdgeInsets()))
+    }
 }

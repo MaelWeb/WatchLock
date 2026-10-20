@@ -332,7 +332,11 @@
 "尚未绑定手表，自动锁定暂不生效（设置 → 设备）" = "No watch bound yet, so auto-lock is inactive (Settings → Device)";
 "锁定" = "Lock";
 "等同于 ⌃⌘Q，锁定后需要重新验证身份。可在「设置 → 通用」关闭此确认。" = "Same as ⌃⌘Q; you will need to authenticate again afterwards. You can turn off this confirmation in Settings → General.";
-"最后更新" = "Last update";
+"%@ · %@更新" = "%@ · Updated %@";
+"已离开" = "Away";
+"在身边" = "Near";
+"过渡区" = "Between";
+"距离刻度" = "Distance gauge";
 "上次锁定" = "Last lock";
 "无信号" = "No signal";
 "约 %.1f 米" = "about %.1f m";

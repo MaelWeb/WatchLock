@@ -158,16 +158,16 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 ```
 ┌──────────────────────────────────────────────┐
 │ ┌──────────────────────────────────────────┐ │
-│ │ 🔓  手表在身边                            │ │  StatusCard
+│ │ 🔓  手表在身边                            │ │  StatusCard（一张卡，分段）
 │ │     Apple Watch · 12 秒前更新              │ │
 │ │                                          │ │
-│ │     ▁▃▅▇   -48 dBm          约 0.6 米     │ │  SignalMeter + 2 项指标
-│ └──────────────────────────────────────────┘ │
-│                                              │
-│  ⚠ 蓝牙未授权，无法扫描           ← 异常时插入   │  条件行（wlWarning/wlDanger）
-│                                              │
-│ ┌──────────────────────────────────────────┐ │
-│ │  启用自动锁定                      ●━━━━  │ │  主开关卡片
+│ │  ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▮▬▬▬   ProximityGauge   │ │  距离刻度：已离开 / 过渡 / 在身边
+│ │  已离开                        在身边     │ │
+│ │  -48 dBm                    约 0.6 米     │ │  RSSI + 估算距离
+│ │ ──────────────────────────────────────── │ │
+│ │  ⚠ 蓝牙未授权，无法扫描        ← 异常时插入 │ │  CardSection（条件段）
+│ │ ──────────────────────────────────────── │ │
+│ │  启用自动锁定                      ●━━━━  │ │  CardSection：主开关
 │ └──────────────────────────────────────────┘ │
 │                                              │
 │ ┌────────────┬────────────┬────────────────┐ │
@@ -182,12 +182,37 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 ```
 
 要点
-- 顶部 `StatusCard`：状态图标（20pt，语义色，与菜单栏同源的 `MenuBarIcon`；「已关闭」态图标自带 42% 淡化，故用主色承载避免过淡）+ 状态标题 + 设备名 + 最后更新；第二行 `SignalMeter`(4 格) + RSSI + 估算距离。
+- 顶部 `StatusCard`：状态图标（20pt，语义色，与菜单栏同源的 `MenuBarIcon`；「已关闭」态图标自带 42% 淡化，故用主色承载避免过淡）+ 状态标题 + 「设备名 · 最后更新」副标题；其下 `ProximityGauge` 距离刻度 + RSSI + 估算距离。
+- **状态、扫描告警、主开关合在同一张卡**（`StatusCard(sections:)` + `CardSection`，段间发丝线），告警行不再漂在卡片之间；最坏叠加（离开 + 告警 + 误锁反馈）时少两个 12 间距。
+- **距离刻度取代 4 格信号条**：回答「离自动锁定还有多远」。量程与阈值带共用 `ThresholdMath.bandRange`（−100…−35 dBm），按**当前阈值**切成「已离开 / 过渡 / 在身边」三段，指针是平滑后的 RSSI；分区由 `SignalMeter.level` 推出，与判定引擎同口径。它是**只读指示器**：指针用竖线而非圆钮，避免被误认为可拖动（设置页 `ThresholdBand` 才可拖）。
+- 刻度在**暂停 / 已关闭 / 搜索中**时两侧分区转灰（`isArmed = false`）：此刻不会自动锁，不能再用橙色暗示「即将锁屏」。无有效信号（RSSI ≥ 0，含 macOS 的 127）时不画指针。
+- `SignalMeter` 仍用于设置页设备列表（`DeviceRow`），未删除。
 - 主操作收敛为 3 个：`立即锁定` / `暂停…` / `设置…`。`暂停…` 为 Menu（15 分钟 / 1 小时 / 4 小时 / 直到明天）。
 - 暂停态用**整行状态条**替换暂停按钮，显示剩余时间 + 「恢复」。
 - 误锁反馈：仅在 `falseLockFeedbackAvailable` 时出现，作为上下文行（不占位时不渲染）。
 - 调试菜单收进「更多 ▸」，仅 `debugMenuEnabled` 时显示；退出按钮一并收进去，降低误触。
 - `立即锁定` 保持一键（效率优先），但**不使用 prominent 样式**，并在「通用」新增可选开关「立即锁定前确认」（默认关）。*【待确认：是否需要默认开启确认】*
+
+#### 5.1.1 系统玻璃材质（Liquid Glass）适配
+
+面板背景**不自绘**，交给系统：`MenuBarExtra(.window)` 的面板在 macOS 26 上自动采用 Liquid Glass，前提是 App 用**最新 SDK** 构建。依据均来自 Apple 官方文档（2026-10-20 读取 Markdown 版）：
+
+| 依据 | 对本面板的约束 |
+| --- | --- |
+| 《Adopting Liquid Glass》："standard components like bars, sheets, popovers, and controls automatically adopt this material"；需"build with the latest SDKs" | 发布产物必须链接 macOS 26 SDK；CI 用 `macos-26`，并由 `Scripts/verify-liquid-glass-sdk.sh` 在构建后校验 |
+| 同上："Audit the backgrounds of sheets and popovers … remove those custom background views" | 面板根视图**不加** `.background` / 视觉效果视图（现状已满足）；不要手动包 `NSVisualEffectView` |
+| 同上："Avoid overusing Liquid Glass effects … avoid overcrowding or layering" | 面板内按钮保持标准 `.bordered`，**不改** `.glass` / `glassEffect`；不在玻璃上再叠玻璃 |
+| HIG《Materials》："Don't use Liquid Glass in the content layer … use standard materials" | 卡片（内容层）继续用 `.quaternary` 这类标准填充，不用 `glassEffect` |
+| HIG《Materials》：regular 变体"when components have a significant amount of text, such as alerts, sidebars, or popovers" | 面板文字多，应保持系统默认的 regular 玻璃；不选 clear（clear 仅用于媒体等视觉丰富背景） |
+| 同上："Test your app's custom elements, colors … with different configurations" 与"increased contrast option" | `ProximityGauge` 的半透明分区在「增强对比度」下加深（`ProximityGaugeMath.opacity`） |
+| 《UIDesignRequiresCompatibility》：设为 YES 会"display the app as it looks when built against previous versions of the SDKs"，且"temporarily" | **不设置**该键（等于放弃玻璃）；发布测试会拦截 |
+
+**范围与限制（务必区分）**
+- **文档已证实**：新 SDK 构建 → 标准 popover 自动用新材质；不要自加背景；内容层不用 Liquid Glass。
+- **本次实测**：线上 `/Applications/WatchLock.app`（1.0.0）链接 **SDK 15.5**；本地构建链接 SDK 26.2。用 `otool -l` 读 `LC_BUILD_VERSION` 得到，非推测。
+- **文档未回答**：旧 SDK 链接的 App 在 macOS 26 上默认是否保持旧外观（`UIDesignRequiresCompatibility` 页面明确"原文未提及"）。因此**不能**断言"1.0.0 的毛玻璃问题就是由旧 SDK 造成"，只能说"升到新 SDK 是 Apple 规定的适配路径"。
+- **待真机验证**：升级后面板顶部 / 底部色带是否消失；增强对比度下 `ProximityGauge` 的实际观感；macOS 14 / 15 上外观是否不变（`LSMinimumSystemVersion` 保持 14.0）。
+- **不在本节范围**：设置窗口 / 引导窗口（自建 `NSWindow`）的玻璃适配另议。
 
 ### 5.2 设置窗口 · 通用
 

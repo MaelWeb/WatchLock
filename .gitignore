@@ -1,2 +1,4 @@
 dist/
 .build/
+# UI 设计稿的 fork / playground 实验区（见 .codebuddy/skills/ui-design-iteration）
+docs/ui-design/.scratch/

@@ -31,7 +31,10 @@ concurrency:
 jobs:
   build:
     name: Universal DMG
-    runs-on: macos-15
+    # macos-26：Xcode 26 / macOS 26 SDK。链接旧 SDK 的 App 不会采用系统的 Liquid Glass 材质
+    # （依据：Apple《Adopting Liquid Glass》要求用最新 SDK 构建）；之前的 macos-15 只能产出 SDK 15.x 的包。
+    # 仍保持 LSMinimumSystemVersion 14.0，旧系统上外观不变。
+    runs-on: macos-26
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -109,6 +112,9 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
           SIGN_IDENTITY: '-'
         run: bash Scripts/build-dmg.sh --universal --no-sandbox
+
+      - name: Verify linked SDK and compatibility key
+        run: bash Scripts/verify-liquid-glass-sdk.sh dist/WatchLock.app
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4

@@ -14,16 +14,10 @@ struct MenuBarView: View {
     private let panelWidth: CGFloat = 340
 
     var body: some View {
-        // 区块间距 12；仅「状态卡 → 扫描告警 → 主开关」在出现告警时收紧到 8，
-        // 让告警行贴着状态卡而不是漂在中间（设计稿 01-menubar 场景 3）。
+        // 区块间距 12。状态、扫描告警、主开关合在同一张卡里（设计稿 01-menubar），
+        // 告警行不再漂在卡片之间。
         VStack(alignment: .leading, spacing: WLSpacing.md) {
-            VStack(alignment: .leading, spacing: warningMessage == nil ? WLSpacing.md : WLSpacing.sm) {
-                status
-                if let message = warningMessage {
-                    scannerWarning(message)
-                }
-                masterToggle
-            }
+            status
             // 上下文提示（暂停 / 误锁反馈）在主操作之上，触发时才出现，不占常驻空间。
             pauseRow
             falseLockRow
@@ -49,26 +43,31 @@ struct MenuBarView: View {
             subtitle: subtitle,
             tint: statusTint
         ) {
+            ProximityGauge(
+                rssi: session.smoothedRSSI,
+                nearRSSI: settings.nearRSSI,
+                farRSSI: settings.farRSSI,
+                isArmed: session.status == .near || session.status == .far
+            )
             HStack(spacing: WLSpacing.sm) {
-                SignalMeter(
-                    rssi: session.smoothedRSSI,
-                    nearRSSI: settings.nearRSSI,
-                    farRSSI: settings.farRSSI
-                )
                 Text(rssiText)
                     .font(WLFont.body.monospacedDigit())
                 Spacer(minLength: WLSpacing.sm)
                 Text(distanceText)
                     .font(WLFont.body.monospacedDigit())
             }
-            MetricRow(label: String(localized: "最后更新"), value: lastSeenText)
             if let reason = session.lastLockReason, let date = session.lastLockAt {
                 MetricRow(label: String(localized: "上次锁定"), value: LastLockSummary.text(reason: reason, at: date))
             }
+        } sections: {
+            if let message = warningMessage {
+                CardSection { scannerWarning(message) }
+            }
+            CardSection { masterToggle }
         }
     }
 
-    /// 状态卡下方的告警，按优先级只显示一条：
+    /// 状态卡内的告警，按优先级只显示一条：
     /// 扫描器自身的问题 > 因会议 / 演示暂缓锁定（安全相关：此刻不会自动锁屏） > 未绑定手表。
     /// 模拟信号期间不提示未绑定（调试流程不需要绑定）。
     private var warningMessage: String? {
@@ -80,9 +79,11 @@ struct MenuBarView: View {
         return nil
     }
 
+    /// 副标题：设备名 · 最后更新时间（原来单独占一行的「最后更新」并到这里，给距离刻度腾位置）。
     private var subtitle: String {
-        if let name = settings.boundWatchName { return name }
-        return String(localized: "尚未绑定手表")
+        let name = settings.boundWatchName ?? String(localized: "尚未绑定手表")
+        guard let date = session.lastSeen else { return name }
+        return String(localized: "\(name) · \(lastSeenText(since: date))更新")
     }
 
     private var statusTint: Color {
@@ -106,8 +107,7 @@ struct MenuBarView: View {
             : String(localized: "距离未知")
     }
 
-    private var lastSeenText: String {
-        guard let date = session.lastSeen else { return "—" }
+    private func lastSeenText(since date: Date) -> String {
         let seconds = Int(Date().timeIntervalSince(date))
         if seconds < 60 { return String(localized: "\(seconds) 秒前") }
         return String(localized: "\(seconds / 60) 分钟前")
@@ -117,7 +117,7 @@ struct MenuBarView: View {
         Label(message, systemImage: "exclamationmark.triangle.fill")
             .font(WLFont.caption)
             .foregroundStyle(WLColor.warning)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - 主开关与暂停
@@ -149,7 +149,6 @@ struct MenuBarView: View {
             .help("关闭后不再自动锁定，菜单栏只显示状态")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .wlCard(horizontal: WLSpacing.md, vertical: WLSpacing.sm)
     }
 
     private func setEnabled(_ value: Bool) {

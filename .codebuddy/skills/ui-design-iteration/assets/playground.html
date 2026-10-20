@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!-- 变量 playground 模板：复制到 docs/ui-design/.scratch/ 后使用。
+     改 VARS（要调的变量）和 <main> 里的设计稿片段即可。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WatchLock UI playground</title>
+<link rel="stylesheet" href="../mockups.css">
+<style>
+  body { flex-direction: column; align-items: stretch; gap: 12px; }
+  #panel {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,.86); backdrop-filter: blur(8px);
+    border: 1px solid var(--sep);
+  }
+  #panel .ctl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--secondary); }
+  #panel input[type=range] { width: 96px; }
+  #panel button { font-size: 11px; padding: 2px 8px; }
+  #out { width: 100%; height: 96px; font: 11px/1.5 "SF Mono", Menlo, monospace; border-radius: 6px; border: 1px solid var(--sep); }
+  main { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+</style>
+</head>
+<body>
+
+<div id="panel"></div>
+
+<main>
+  <!-- TODO: 把设计稿片段拷到这里（多个变体并排放，共享同一套变量） -->
+  <div class="col">
+    <div class="window chrome" style="width:420px">
+      <div class="lights float"><i class="light r"></i><i class="light y"></i><i class="light g"></i></div>
+      <div class="detail pad">
+        <div class="h">示例标题</div>
+        <div class="sub mt8">示例副标题</div>
+        <div class="card mt12">示例卡片</div>
+        <div class="row gap8 mt12"><span class="btn p">主按钮</span><span class="btn">次按钮</span></div>
+      </div>
+    </div>
+    <div class="caption">片段 A</div>
+  </div>
+</main>
+
+<textarea id="out" readonly placeholder="当前变量值会实时输出在这里"></textarea>
+
+<script>
+// TODO: 改成这一轮要调的变量
+const VARS = [
+  { name: '--win',    label: '窗口底', type: 'color', value: '#ffffff' },
+  { name: '--side',   label: '侧栏',   type: 'color', value: '#f3f3f3' },
+  { name: '--fill',   label: '卡片填充', type: 'color', value: '#787880' },
+  { name: '--blue',   label: '强调色', type: 'color', value: '#007aff' },
+  { name: '--green',  label: '成功色', type: 'color', value: '#34c759' },
+  { name: '--sep',    label: '分隔线', type: 'color', value: '#3c3c43' }
+];
+
+const panel = document.getElementById('panel');
+const out = document.getElementById('out');
+const root = document.documentElement;
+
+function dump() {
+  out.value = VARS.map(v => `${v.name}: ${root.style.getPropertyValue(v.name) || v.value};`).join('\n');
+}
+
+for (const v of VARS) {
+  const wrap = document.createElement('label');
+  wrap.className = 'ctl';
+  wrap.textContent = v.label + ' ';
+  const input = document.createElement('input');
+  if (v.type === 'color') {
+    input.type = 'color';
+    input.value = v.value;
+  } else {
+    input.type = 'range';
+    input.min = v.min ?? 0; input.max = v.max ?? 32; input.step = v.step ?? 1;
+    input.value = v.value;
+  }
+  input.addEventListener('input', () => {
+    const val = v.type === 'range' ? input.value + (v.unit ?? 'px') : input.value;
+    root.style.setProperty(v.name, val);
+    dump();
+  });
+  wrap.appendChild(input);
+  panel.appendChild(wrap);
+  root.style.setProperty(v.name, v.type === 'range' ? v.value + (v.unit ?? 'px') : v.value);
+}
+
+const reset = document.createElement('button');
+reset.className = 'btn sm';
+reset.textContent = '重置';
+reset.onclick = () => location.reload();
+panel.appendChild(reset);
+
+dump();
+</script>
+</body>
+</html>

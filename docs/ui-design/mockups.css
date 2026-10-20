@@ -200,6 +200,25 @@ body {
 }
 .mb-scene { width: 372px; background: linear-gradient(160deg, #dfe7f3, #ccd7e8); border-radius: 10px; overflow: hidden; }
 
+/* 菜单栏面板：同一张卡内分段（状态 / 告警 / 主开关），段间用发丝线 */
+.card.group { padding: 0; }
+.card-sec { padding: 12px; }
+.card-sec.slim { padding: 8px 12px; }
+.card-sec + .card-sec { border-top: 1px solid var(--sep); }
+
+/* 距离刻度（ProximityGauge）：量程 -100…-35 dBm，分区按当前阈值计算。
+   示例阈值 已离开 -70 / 在身边 -55 → 远区 46.2%、过渡区 23.1%、近区其余。
+   .idle = 暂停 / 已关闭 / 搜索中：不会自动锁定，分区转灰，避免用橙色暗示「即将锁屏」。 */
+.gauge-wrap { position: relative; height: 20px; display: flex; align-items: center; }
+.gauge { position: relative; width: 100%; height: 10px; display: flex; }
+.gauge .z { height: 100%; }
+.gauge .z.far  { flex: 0 0 46.2%; border-radius: 5px 0 0 5px; background: rgba(255, 159, 10, 0.38); }
+.gauge .z.mid  { flex: 0 0 23.1%; background: var(--track); }
+.gauge .z.near { flex: 1; border-radius: 0 5px 5px 0; background: rgba(52, 199, 89, 0.38); }
+.gauge.idle .z.far, .gauge.idle .z.near { background: rgba(142, 142, 147, 0.26); }
+.gauge .tick { position: absolute; top: -5px; width: 4px; height: 20px; margin-left: -2px; border-radius: 2px; background: var(--text); }
+.gauge-labels { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--secondary); }
+
 /* 步骤指示器 */
 .steps { display: flex; align-items: flex-start; gap: 4px; }
 .step { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; }

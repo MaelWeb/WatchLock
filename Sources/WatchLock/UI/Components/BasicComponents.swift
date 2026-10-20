@@ -5,13 +5,62 @@ import SwiftUI
 /// 状态卡：状态图标 + 状态标题 + 副标题，底部由调用方追加指标行。
 ///
 /// 图标与菜单栏同源（`StatusIcon` → `MenuBarIcon`），不再单独指定 SF Symbol。
-struct StatusCard<Footer: View>: View {
+///
+/// `sections` 是同一张卡内的后续分段（告警行、主开关等），每段用 `CardSection` 包裹，
+/// 段间自带发丝线；不需要时省略即可。
+struct StatusCard<Footer: View, Sections: View>: View {
     let status: ProximityStatus
     let title: String
     let subtitle: String
     let tint: Color
     @ViewBuilder var footer: Footer
+    @ViewBuilder var sections: Sections
 
+    init(
+        status: ProximityStatus,
+        title: String,
+        subtitle: String,
+        tint: Color,
+        @ViewBuilder footer: () -> Footer,
+        @ViewBuilder sections: () -> Sections
+    ) {
+        self.status = status
+        self.title = title
+        self.subtitle = subtitle
+        self.tint = tint
+        self.footer = footer()
+        self.sections = sections()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题区与指标区之间 12，指标区内部行距 8（设计稿 01-menubar）。
+            VStack(alignment: .leading, spacing: WLSpacing.md) {
+                // 位图图标没有文字基线，改为顶部对齐（图标高度与标题行高相当）。
+                HStack(alignment: .top, spacing: WLSpacing.sm) {
+                    StatusIcon(status: status, tint: tint)
+                    VStack(alignment: .leading, spacing: WLSpacing.xs) {
+                        Text(title).font(WLFont.statusTitle)
+                        Text(subtitle).font(WLFont.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                VStack(alignment: .leading, spacing: WLSpacing.sm) {
+                    footer
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(WLSpacing.md)
+
+            sections
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wlCardGroup()
+    }
+}
+
+extension StatusCard where Sections == EmptyView {
+    /// 没有后续分段的状态卡。
     init(
         status: ProximityStatus,
         title: String,
@@ -19,31 +68,32 @@ struct StatusCard<Footer: View>: View {
         tint: Color,
         @ViewBuilder footer: () -> Footer
     ) {
-        self.status = status
-        self.title = title
-        self.subtitle = subtitle
-        self.tint = tint
-        self.footer = footer()
+        self.init(status: status, title: title, subtitle: subtitle, tint: tint, footer: footer) {
+            EmptyView()
+        }
+    }
+}
+
+// MARK: - 卡内分段
+
+/// 同一张卡内的一段：上方一条发丝线，内容按单行规格留白（横 12 / 竖 8）。
+///
+/// 与 `StatusCard(sections:)` 或 `.wlCardGroup()` 配合，把状态、告警、开关放进同一张卡。
+struct CardSection<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
     }
 
     var body: some View {
-        // 标题区与指标区之间 12，指标区内部行距 8（设计稿 01-menubar）。
-        VStack(alignment: .leading, spacing: WLSpacing.md) {
-            // 位图图标没有文字基线，改为顶部对齐（图标高度与标题行高相当）。
-            HStack(alignment: .top, spacing: WLSpacing.sm) {
-                StatusIcon(status: status, tint: tint)
-                VStack(alignment: .leading, spacing: WLSpacing.xs) {
-                    Text(title).font(WLFont.statusTitle)
-                    Text(subtitle).font(WLFont.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            VStack(alignment: .leading, spacing: WLSpacing.sm) {
-                footer
-            }
+        VStack(spacing: 0) {
+            Divider()
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, WLSpacing.md)
+                .padding(.vertical, WLSpacing.sm)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .wlCard()
     }
 }
 
