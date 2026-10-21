@@ -14,13 +14,10 @@ struct DevicePage: View {
             VStack(alignment: .leading, spacing: WLSpacing.md) {
                 boundCard
                 candidateCard
-
+                AuxiliaryDevicesCard()
                 ScannerStatusBar(
                     isScanning: session.scanner.isScanning,
                     bluetoothTitle: session.bluetoothState.title,
-                    deviceCount: candidates.count,
-                    discoveryCount: session.scanner.discoveryCount,
-                    invalidRSSICount: session.scanner.invalidRSSICount,
                     message: session.scannerMessage
                 )
 
@@ -137,6 +134,6 @@ struct DevicePage: View {
         if session.scanner.discoveryCount == 0 {
             return String(localized: "暂未发现任何 BLE 广播。请确认手表在旁边、已解锁且蓝牙开启。")
         }
-        return String(localized: "已收到 \(session.scanner.discoveryCount) 条广播但没有可绑定设备，可到「诊断 → 广播抓包」复制内容排查。")
+        return String(localized: "附近有蓝牙设备，但暂时没有识别到可绑定的手表。请让手表靠近 Mac 并保持解锁。")
     }
 }

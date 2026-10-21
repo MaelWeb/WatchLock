@@ -225,7 +225,7 @@ struct OnboardingView: View {
                         ) {
                             session.bind(watch: device)
                         }
-                        if showAllDevices {
+                        if showAllDevices, DeveloperMode.isEnabled {
                             Text(device.advertisementSummary)
                                 .font(.caption2.monospaced())
                                 .foregroundStyle(.secondary)
@@ -238,12 +238,12 @@ struct OnboardingView: View {
             }
 
             HStack(spacing: WLSpacing.sm) {
-                Button(showAllDevices ? String(localized: "隐藏广播详情") : String(localized: "看不到设备？显示全部")) {
+                Button(showAllDevices ? String(localized: "只显示推荐设备") : String(localized: "看不到设备？显示全部")) {
                     showAllDevices.toggle()
                 }
                 .buttonStyle(.borderless)
                 .font(.caption)
-                if showAllDevices {
+                if showAllDevices, DeveloperMode.isEnabled {
                     Button("复制诊断信息") { copyDiagnostics() }
                         .buttonStyle(.borderless)
                         .font(.caption)

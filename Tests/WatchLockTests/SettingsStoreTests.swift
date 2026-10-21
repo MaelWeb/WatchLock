@@ -38,6 +38,79 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertFalse(store.isPaused(now: now))
     }
 
+    // MARK: - 信任场所 / 辅助设备
+
+    func testTrustedPlacePausesIndependentlyOfManualPause() {
+        let store = SettingsStore(defaults: defaults)
+        let now = Date()
+        XCTAssertFalse(store.isPaused(now: now))
+
+        store.activeTrustedPlaceName = "家"
+        XCTAssertTrue(store.isPaused(now: now))
+        XCTAssertFalse(store.isManuallyPaused(now: now), "信任场所不能被当成手动暂停")
+
+        // 手动暂停到期不会因为信任场所而被延长，反之亦然。
+        store.pause(minutes: 15)
+        store.activeTrustedPlaceName = nil
+        XCTAssertTrue(store.isPaused(now: now))
+        XCTAssertFalse(store.isPaused(now: now.addingTimeInterval(16 * 60)))
+    }
+
+    func testTrustedPlaceDisabledOrOverriddenDoesNotPause() {
+        let store = SettingsStore(defaults: defaults)
+        store.activeTrustedPlaceName = "家"
+        store.trustedPlaceEnabled = false
+        XCTAssertFalse(store.isPaused)
+
+        store.trustedPlaceEnabled = true
+        XCTAssertTrue(store.isPaused)
+        store.trustedPlaceOverridden = true
+        XCTAssertFalse(store.isPaused, "用户点了恢复后，离开该场所之前不再按场所暂停")
+    }
+
+    func testActivePlaceIsRuntimeOnly() {
+        let store = SettingsStore(defaults: defaults)
+        store.activeTrustedPlaceName = "家"
+        store.trustedPlaceOverridden = true
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertNil(reloaded.activeTrustedPlaceName, "运行时状态不能落盘，否则重启后会在不在场所时仍然暂停")
+        XCTAssertFalse(reloaded.trustedPlaceOverridden)
+        XCTAssertFalse(reloaded.isPaused)
+    }
+
+    func testTrustedPlacesAndAuxiliaryDevicesPersist() {
+        let store = SettingsStore(defaults: defaults)
+        XCTAssertTrue(store.trustedPlaces.isEmpty)
+        XCTAssertTrue(store.auxiliaryDevices.isEmpty)
+        XCTAssertTrue(store.trustedPlaceEnabled)
+        XCTAssertTrue(store.fusionEnabled)
+
+        let place = TrustedPlace.Place(name: "家", gatewayMAC: "aa:bb:cc:dd:ee:01", ssid: "Home")
+        store.trustedPlaces = [place]
+        store.auxiliaryDevices = [AuxiliaryDevice(id: "x", name: "iPhone", advertisement: "type=0x10")]
+
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.trustedPlaces, [place])
+        XCTAssertEqual(reloaded.auxiliaryDevices.map(\.name), ["iPhone"])
+    }
+
+    func testCorruptedStoredDataFallsBackToEmpty() {
+        defaults.set(Data([0x01, 0x02]), forKey: "settings.trustedPlaces")
+        defaults.set(Data([0xff]), forKey: "settings.auxiliaryDevices")
+        let store = SettingsStore(defaults: defaults)
+        XCTAssertTrue(store.trustedPlaces.isEmpty)
+        XCTAssertTrue(store.auxiliaryDevices.isEmpty)
+    }
+
+    func testFusionConfigNeedsDevicesToBeEnabled() {
+        let store = SettingsStore(defaults: defaults)
+        XCTAssertFalse(store.fusionConfig.enabled, "没选任何辅助设备时不应启用")
+        store.auxiliaryDevices = [AuxiliaryDevice(id: "x", name: "iPhone", advertisement: nil)]
+        XCTAssertTrue(store.fusionConfig.enabled)
+        store.fusionEnabled = false
+        XCTAssertFalse(store.fusionConfig.enabled)
+    }
+
     func testProximityConfigIsDerivedFromSettings() {
         let store = SettingsStore(defaults: defaults)
         store.nearRSSI = -50
@@ -81,7 +154,6 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertTrue(store.lockOnSignalLoss)
         XCTAssertEqual(store.unlockGraceAfterWake, 8, accuracy: .ulpOfOne)
         XCTAssertEqual(store.lockMethod, .controlCommandQ)
-        XCTAssertFalse(store.debugMenuEnabled)
         XCTAssertFalse(store.hasCompletedOnboarding)
     }
 }

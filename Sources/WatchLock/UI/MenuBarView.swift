@@ -89,11 +89,12 @@ struct MenuBarView: View {
     }
 
     /// 告警，按优先级只显示一条：
-    /// 扫描器自身的问题 > 因会议 / 演示暂缓锁定（安全相关：此刻不会自动锁屏） > 未绑定手表。
+    /// 扫描器自身的问题 > 因会议 / 演示暂缓锁定 > 因辅助设备暂缓锁定（后两者安全相关：此刻不会自动锁屏）> 未绑定手表。
     /// 模拟信号期间不提示未绑定（调试流程不需要绑定）。
     private var warningMessage: String? {
         if let message = session.scannerMessage { return message }
         if let note = session.lockDeferralNote { return note }
+        if let note = session.fusionNote { return note }
         if settings.boundWatchID == nil, session.simulatedRSSI == nil {
             return String(localized: "尚未绑定手表，自动锁定暂不生效（设置 → 设备）")
         }
@@ -152,7 +153,9 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var pauseRow: some View {
-        if settings.isPaused {
+        if settings.isTrustedPlacePausing, !settings.isManuallyPaused(now: Date()) {
+            trustedPlaceRow
+        } else if settings.isPaused {
             HStack(spacing: WLSpacing.sm) {
                 Image(systemName: "pause.circle.fill")
                     .foregroundStyle(WLColor.warning)
@@ -174,6 +177,26 @@ struct MenuBarView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .wlCard(tint: .warning, horizontal: WLSpacing.md, vertical: WLSpacing.sm)
         }
+    }
+
+    /// 信任场所内的自动暂停：与手动暂停同款提示条，「恢复」只对本次停留有效，离开该网络后重新按场所判断。
+    private var trustedPlaceRow: some View {
+        HStack(spacing: WLSpacing.sm) {
+            Image(systemName: "mappin.circle.fill")
+                .foregroundStyle(WLColor.warning)
+                .accessibilityHidden(true)
+            Text("在「\(settings.activeTrustedPlaceName ?? "")」，已暂停")
+                .font(WLFont.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Spacer(minLength: WLSpacing.xs)
+            Button("恢复") { session.resume() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("在这个网络里也恢复自动锁定，直到你离开")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .wlCard(tint: .warning, horizontal: WLSpacing.md, vertical: WLSpacing.sm)
     }
 
     // MARK: - 主操作
@@ -285,7 +308,7 @@ struct MenuBarView: View {
     /// 让「更多」与卡片左边缘对齐。
     private var moreMenu: some View {
         Menu {
-            if settings.debugMenuEnabled {
+            if DeveloperMode.isEnabled {
                 Section("模拟信号") {
                     Button("在身边 (-50 dBm)") { session.startSimulating(rssi: -50) }
                     Button("边界 (-65 dBm)") { session.startSimulating(rssi: -65) }
@@ -312,6 +335,6 @@ struct MenuBarView: View {
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("调试与退出")
+        .help(DeveloperMode.isEnabled ? String(localized: "调试与退出") : String(localized: "更多操作"))
     }
 }

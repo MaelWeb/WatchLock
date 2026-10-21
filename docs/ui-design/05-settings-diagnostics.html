@@ -10,6 +10,8 @@
 <symbol id="steth" viewBox="0 0 16 16"><path d="M4 2.5v4a2.6 2.6 0 0 0 5.2 0v-4"/><circle cx="11.6" cy="10.4" r="2.2"/><path d="M9.2 8.6l1 1"/></symbol>
 <symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
 <symbol id="trash" viewBox="0 0 16 16"><path d="M3.6 4.6h8.8M6.2 4.6V3h3.6v1.6M5 4.6l.6 8.2h4.8L11 4.6"/></symbol>
+<symbol id="pin" viewBox="0 0 16 16"><path d="M8 14.2s4.4-3.9 4.4-7.4a4.4 4.4 0 0 0-8.8 0c0 3.5 4.4 7.4 4.4 7.4z"/><circle cx="8" cy="6.8" r="1.5"/></symbol>
+<symbol id="phone" viewBox="0 0 16 16"><rect x="4.6" y="1.8" width="6.8" height="12.4" rx="1.8"/><path d="M7 12.4h2"/></symbol>
 </defs></svg>
 
 <div class="col">
@@ -20,6 +22,7 @@
 <div class="side-brand"><img src="AppIcon-master.png" alt=""><span>WatchLock</span></div>
       <div class="side-item"><svg class="ic"><use href="#gear"/></svg>通用</div>
       <div class="side-item"><svg class="ic"><use href="#watch"/></svg>设备</div>
+      <div class="side-item"><svg class="ic"><use href="#pin"/></svg>场所</div>
       <div class="side-item"><svg class="ic"><use href="#lockopen"/></svg>解锁</div>
       <div class="side-item"><svg class="ic"><use href="#ruler"/></svg>校准</div>
       <div class="side-item on"><svg class="ic"><use href="#steth"/></svg>诊断</div>
@@ -53,16 +56,7 @@
         </div>
       </div>
 
-      <div class="card mt12" style="padding:10px 12px">
-        <div class="row"><div class="h" style="font-size:13px;flex:1">▸ 广播抓包（用于固化识别规则）</div></div>
-      </div>
 
-      <div class="card mt12">
-        <div class="h" style="font-size:13px">调试</div>
-        <div class="form-row mt8"><div class="label" style="flex:1">菜单栏「更多」里显示调试子菜单（模拟信号）</div><div class="sw"><i></i></div></div>
-        <div class="cap mt8">开启后可从菜单栏直接注入 -50 / -65 / -85 dBm 或模拟信号丢失，不必真的走动就能验证锁定链路。也可以带环境变量启动：WATCHLOCK_FAKE_RSSI=-85</div>
-        <div class="cap mt8" style="color:#8e8e93">日志文件：~/Library/Containers/…/watchlock-diag.log</div>
-      </div>
     </div>
   </div>
 </div>

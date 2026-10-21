@@ -124,6 +124,25 @@
 
 **局限**：没有对用户真实位置做逐段标注（「离开」由锁屏、键鼠空闲、蓝牙丢信号三者推断），也没有做「摘下手表 / 锁手表」等受控动作；样本只有一台设备。要进一步区分触发原因，需要按下面的协议再采一轮：运行探测程序，记录每个动作的时间——摘下手表放在电脑旁、锁定手表、戴上不解锁、走远再回来、关闭 iPhone 蓝牙——再对照 companion 变化。
 
+## 6.4 信任场所与辅助信号源（2026-10-20，本机实测）
+
+**问题 A：能不能无授权识别「我在家 / 在公司」？** macOS 26.6.1，无定位授权的进程：
+
+1. `CWInterface.ssid()`、`bssid()` 均为 `nil`；`SCDynamicStore` 的 `State:/Network/Interface/en0/AirPort` 里 SSID 是占位值；`ipconfig getsummary en0` 的 SSID / BSSID 是 `<redacted>`。**SSID 不能当主依据。**
+2. 默认网关 IP 可由 `State:/Network/Global/IPv4` 的 `Router` 读到；网关 MAC 可由 `sysctl(CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO)` 读内核 ARP 表得到，**无需授权、不发包**，结果与 `arp -an` 一致。
+3. **处理**：以网关 MAC 为主依据，SSID 仅作可选增强（读到才参与否决）。安全边界：网关 MAC 可被 ARP 欺骗，定位为便利功能；只在用户主动保存后生效。
+
+**Apple 文档（已核对原文）**：定位授权在 macOS 上 When in Use 与 Always 等价；macOS 专用键 `NSLocationUsageDescription`，缺键时授权请求立即失败；`com.apple.security.personal-information.location` 页面写明启用 App Sandbox **或** Hardened Runtime 后可添加。
+
+**未验证**：ad-hoc 签名下定位授权能否跨升级保留（社区转引 DTS 说法：TCC 需要可跨构建追踪的签名身份；论坛原帖被反爬拦截，未取得一手原文）；`LSUIElement` 应用能否弹出授权框；该 entitlement 对非沙盒应用读 SSID 是否必需。三项都不影响信任场所本身（不依赖 SSID）。
+
+**问题 B：iPhone / AirPods 能不能当第二信号源？** 本机 BLE 实测：
+
+1. 有名称的设备只有 11 个；Apple 厂商数据（`4c 00`）类型字节分布 `10=128`、`09=49`、`12=50`、`16=39`、`0c=33`、`07=11`、`0f=8`。iPhone 与手表同为 `0x10`，**无法按类型区分**，只能由用户按名称挑选。
+2. Apple 设备以 RPA + IRK 广播，地址轮换；iPhone 息屏后可被 IRK 解析的广播会停止（论坛报告，未取得一手原文）。
+3. **结论**：不能作独立信号源，只能作辅助。权力限定为「延缓由信号丢失引起的锁定」（对应 §2 的证据 1~2：手表自己没广播而人其实在），不能触发锁定，不能推翻手表明确很弱的读数（手机落在桌上人走开是最常见的反例），并有 2 分钟硬上限。
+4. **未验证**：−80 dBm 的「在附近」阈值是经验值，未用真实 iPhone / AirPods 标定；AirPods 在耳 / 在盒是否有可区分的广播未实测。
+
 ## 7. 参考文献
 
 1. Apple Developer Forums, Core Bluetooth 标签（identifier 变化、IRK 广播随息屏停止），2026。

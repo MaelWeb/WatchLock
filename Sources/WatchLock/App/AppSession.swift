@@ -19,9 +19,13 @@ final class AppSession: ObservableObject {
     })
     /// 自动锁定闸门：会议 / 演示豁免与手动解锁后重新布防（均默认关闭）。
     lazy var lockGate = LockGate(config: { [weak self] in self?.settings.lockGateConfig ?? .init() })
+    /// 信任场所：探测网络环境，进入已保存的场所时暂停自动锁定（规则见 `TrustedPlace`）。
+    let trustedPlaces = TrustedPlaceMonitor()
 
     /// 菜单栏提示：自动锁定因会议 / 演示被暂缓。
     @Published private(set) var lockDeferralNote: String?
+    /// 菜单栏提示：手表信号丢失，但辅助设备在附近，锁定被暂缓（规则见 `PresenceFusion`）。
+    @Published private(set) var fusionNote: String?
 
     @Published private(set) var status: ProximityStatus = .unknown
     @Published private(set) var smoothedRSSI: Double = 0
@@ -53,6 +57,14 @@ final class AppSession: ObservableObject {
     private var lastPruneAt: Date = .distantPast
     private let candidateTTL: TimeInterval = 30 * 60
 
+    // 辅助信号源（iPhone / AirPods）：只能暂缓「信号丢失」造成的锁定，规则见 `PresenceFusion`。
+    private var fusionEvidence = PresenceFusion.Evidence()
+    private var fusionHold = PresenceFusion.Hold()
+    private var lastAuxiliaryRebindAt: Date = .distantPast
+    /// 信任场所的探测间隔。网络环境变化不频繁，3 秒足够，也避免每秒读一次 ARP 表。
+    private let placeProbeInterval: TimeInterval = 3
+    private var lastPlaceProbeAt: Date = .distantPast
+
     private init() {
         bind()
     }
@@ -76,6 +88,18 @@ final class AppSession: ObservableObject {
             }
         }
         scanner.boundIdentifier = settings.boundWatchID.flatMap(UUID.init(uuidString:))
+        scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
+        scanner.onAuxiliaryRSSI = { [weak self] identifier, rssi, date in
+            guard let self else { return }
+            Task { @MainActor in
+                self.fusionEvidence.record(
+                    id: identifier.uuidString,
+                    rssi: rssi,
+                    at: date,
+                    window: self.settings.fusionConfig.freshness
+                )
+            }
+        }
 
         engine.onEvent = { [weak self] event in
             Task { @MainActor in self?.handle(event: event) }
@@ -92,6 +116,8 @@ final class AppSession: ObservableObject {
                 guard let self, self.isRunning else { return }
                 self.wakeGraceUntil = Date().addingTimeInterval(self.settings.unlockGraceAfterWake)
                 self.engine.reset()
+                self.cancelFusionHold()
+                self.fusionEvidence.reset()
                 self.updateStatus(.unknown)
                 self.engine.start()
                 self.scanner.start()
@@ -103,6 +129,7 @@ final class AppSession: ObservableObject {
                 guard let self else { return }
                 DiagnosticsLog.shared.append(.info, String(localized: "系统进入睡眠，暂停蓝牙扫描"))
                 self.unlocker.cancelPendingApproach()
+                self.cancelFusionHold()
                 self.scanner.stop()
                 self.engine.stop()
             }
@@ -110,6 +137,7 @@ final class AppSession: ObservableObject {
         monitor.onScreenLocked = { [weak self] in
             Task { @MainActor in
                 self?.lockGate.cancel()
+                self?.cancelFusionHold()
                 self?.syncLockDeferralNote()
                 self?.updateStatus(self?.engine.status ?? .unknown)
             }
@@ -152,6 +180,9 @@ final class AppSession: ObservableObject {
         housekeepingTimer = nil
         stopSimulating()
         unlocker.cancelPendingApproach()
+        cancelFusionHold()
+        trustedPlaces.reset()
+        settings.activeTrustedPlaceName = nil
         scanner.stop()
         engine.stop()
         monitor.stop()
@@ -210,6 +241,8 @@ final class AppSession: ObservableObject {
     func refreshConfig() {
         engine.config = settings.proximityConfig
         scanner.boundIdentifier = settings.boundWatchID.flatMap(UUID.init(uuidString:))
+        scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
+        fusionEvidence.keepOnly(Set(settings.auxiliaryDevices.map(\.id)))
         // 暂停或关闭时切到间歇扫描，降低耗电（FR-12）。
         scanner.setMode(settings.isEnabled && !settings.isPaused ? .continuous : .lowPower)
         activity.setRequired(isRunning && settings.isEnabled && !settings.isPaused)
@@ -235,11 +268,15 @@ final class AppSession: ObservableObject {
 
     // MARK: - 锁定闸门（规则见 `LockGate`）
 
+    /// 监听是否处于「会产生锁定」的活跃状态；不活跃时所有待处理动作都应放弃。
+    private var isMonitoringActive: Bool {
+        isRunning && settings.isEnabled && !settings.isPaused
+            && !monitor.isSystemSleeping && !monitor.isScreenLocked && !bluetoothOutageActive
+    }
+
     /// 1 秒一次：条件不再满足时放弃待处理动作，否则让闸门结算（会议结束补锁 / 空闲后重新布防）。
     private func driveLockGate() {
-        let active = isRunning && settings.isEnabled && !settings.isPaused
-            && !monitor.isSystemSleeping && !monitor.isScreenLocked && !bluetoothOutageActive
-        guard active else {
+        guard isMonitoringActive else {
             lockGate.cancel()
             syncLockDeferralNote()
             return
@@ -253,6 +290,257 @@ final class AppSession: ObservableObject {
     private func syncLockDeferralNote() {
         let note = lockGate.deferralNote
         if note != lockDeferralNote { lockDeferralNote = note }
+    }
+
+    /// 状态机要求锁屏：先过会议 / 演示闸门，再执行锁定。
+    private func requestLock(reason: String) {
+        if let grant = lockGate.request(reason: reason) {
+            performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
+        }
+        syncLockDeferralNote()
+    }
+
+    // MARK: - 辅助信号源（规则见 `PresenceFusion`）
+
+    private func auxiliaryIdentifierSet() -> Set<UUID> {
+        Set(settings.auxiliaryDevices.compactMap { UUID(uuidString: $0.id) })
+    }
+
+    private func nearAuxiliaryIDs(now: Date) -> [String] {
+        fusionEvidence.nearIDs(now: now, config: settings.fusionConfig)
+    }
+
+    private func auxiliaryNames(for ids: [String]) -> String {
+        let names = ids.compactMap { id in settings.auxiliaryDevices.first { $0.id == id }?.displayName }
+        return names.prefix(2).joined(separator: "、")
+    }
+
+    /// 手表回到身边、暂停 / 关闭、睡眠、屏幕已锁定：放弃暂缓。
+    private func cancelFusionHold() {
+        guard fusionHold.isHolding else { return }
+        fusionHold.cancel()
+        syncFusionNote()
+    }
+
+    private func syncFusionNote() {
+        let note: String? = fusionHold.isHolding
+            ? String(localized: "手表信号暂时丢失，\(auxiliaryNames(for: fusionHold.holders))在附近，已暂缓锁定")
+            : nil
+        if note != fusionNote { fusionNote = note }
+    }
+
+    /// 状态机刚判定「已离开」。返回 `true` 表示被辅助设备暂缓（调用方不要锁屏）。
+    private func holdForAuxiliary(reason: ProximityEngine.FarReason) -> Bool {
+        // 暂停 / 睡眠 / 已锁屏时本来就不会锁定，没必要进入暂缓。
+        guard isMonitoringActive else { return false }
+        let now = Date()
+        let config = settings.fusionConfig
+        guard fusionHold.request(reason: reason, nearIDs: nearAuxiliaryIDs(now: now), now: now, config: config) else {
+            return false
+        }
+        let minutes = Int(config.maxHold / 60)
+        DiagnosticsLog.shared.append(
+            .info,
+            String(localized: "手表信号丢失，但辅助设备（\(auxiliaryNames(for: fusionHold.holders))）在附近，暂缓锁定，最多 \(minutes) 分钟")
+        )
+        syncFusionNote()
+        return true
+    }
+
+    /// 1 秒一次：结算辅助设备的暂缓。
+    private func driveFusion() {
+        guard isMonitoringActive else {
+            cancelFusionHold()
+            return
+        }
+        let now = Date()
+        let watch = PresenceFusion.WatchView(
+            isFar: engine.status == .far,
+            lastSampleAt: engine.lastSample?.date,
+            smoothedRSSI: engine.lastSample?.smoothedRSSI,
+            farRSSI: settings.farRSSI
+        )
+        let result = fusionHold.tick(
+            now: now,
+            config: settings.fusionConfig,
+            nearIDs: nearAuxiliaryIDs(now: now),
+            watch: watch
+        )
+        switch result {
+        case .idle, .holding:
+            break
+        case .cancelled:
+            DiagnosticsLog.shared.append(.info, String(localized: "手表信号恢复，取消暂缓"))
+        case .release(let release, let reason):
+            let note: String
+            switch release {
+            case .auxiliaryGone: note = String(localized: "辅助设备已不在附近")
+            case .watchConfirmedFar: note = String(localized: "手表重新出现且信号很弱")
+            case .capped: note = String(localized: "已暂缓满上限")
+            case .disabled: note = String(localized: "辅助设备功能已关闭")
+            }
+            DiagnosticsLog.shared.append(.info, String(localized: "结束暂缓：\(note)"))
+            requestLock(reason: "\(reason.title)（\(note)）")
+        }
+        syncFusionNote()
+    }
+
+    /// 辅助设备的蓝牙地址轮换后尝试续接（每 10 秒一次）。续不上就不再提供证据，不影响锁定。
+    private func rebindAuxiliaryDevices(now: Date) {
+        guard now.timeIntervalSince(lastAuxiliaryRebindAt) >= 10, !settings.auxiliaryDevices.isEmpty else { return }
+        lastAuxiliaryRebindAt = now
+
+        var devices = settings.auxiliaryDevices
+        var taken = Set(devices.map(\.id))
+        if let bound = settings.boundWatchID { taken.insert(bound) }
+        let discovered = Array(scanner.allDevices.values)
+        var changed = false
+
+        for index in devices.indices {
+            let device = devices[index]
+            // 还在被看到就不用续接。
+            if let seen = scanner.allDevices[UUID(uuidString: device.id) ?? UUID()],
+               now.timeIntervalSince(seen.lastSeen) < 60 { continue }
+            guard let target = PresenceFusion.rebindTarget(for: device, among: discovered, taken: taken) else { continue }
+            fusionEvidence.move(from: device.id, to: target.id.uuidString)
+            devices[index].id = target.id.uuidString
+            taken.insert(target.id.uuidString)
+            changed = true
+            DiagnosticsLog.shared.append(.info, String(localized: "辅助设备蓝牙地址已轮换，自动续接（\(device.displayName)）"))
+        }
+        if changed {
+            settings.auxiliaryDevices = devices
+            scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
+        }
+    }
+
+    // MARK: - 信任场所（规则见 `TrustedPlace`）
+
+    /// 3 秒一次：探测网络环境，进入 / 离开已保存的场所时切换暂停。
+    private func driveTrustedPlace(now: Date) {
+        guard now.timeIntervalSince(lastPlaceProbeAt) >= placeProbeInterval else { return }
+        lastPlaceProbeAt = now
+        applyTrustedPlace(trustedPlaces.update(
+            places: settings.trustedPlaces,
+            enabled: settings.trustedPlaceEnabled,
+            now: now
+        ))
+    }
+
+    private func applyTrustedPlace(_ change: TrustedPlace.Tracker.Change) {
+        let wasActive = settings.activeTrustedPlaceName != nil
+        let name = trustedPlaces.current?.name
+        if settings.activeTrustedPlaceName != name { settings.activeTrustedPlaceName = name }
+
+        var resumed = false
+        switch change {
+        case .none:
+            // 用户关闭功能 / 删除了当前场所：同样是「不再因场所而暂停」，要做同样的收尾。
+            guard wasActive, name == nil else { return }
+            resumed = true
+            DiagnosticsLog.shared.append(.info, String(localized: "信任场所已停用，恢复自动锁定"))
+        case .entered(let place):
+            DiagnosticsLog.shared.append(.info, String(localized: "进入信任场所「\(place.name)」，暂停自动锁定"))
+        case .left:
+            resumed = true
+            DiagnosticsLog.shared.append(.info, String(localized: "离开信任场所，恢复自动锁定"))
+        }
+
+        if resumed {
+            settings.trustedPlaceOverridden = false
+            // 暂停期间状态机没有被喂样本，状态已过时：清掉，让恢复后的第一批样本重新判定
+            // （否则它可能停在过时的「已离开」上，真的离开时不会再触发锁定）。
+            engine.reset()
+            cancelFusionHold()
+            updateStatus(.unknown)
+        }
+        refreshConfig()
+    }
+
+    /// 配置变化（关闭功能 / 删除场所）后立即同步，不等下一次探测。
+    func syncTrustedPlaceNow() {
+        lastPlaceProbeAt = Date()
+        applyTrustedPlace(trustedPlaces.update(
+            places: settings.trustedPlaces,
+            enabled: settings.trustedPlaceEnabled
+        ))
+    }
+
+    /// 把当前网络保存为信任场所。返回保存结果，失败原因由调用方展示。
+    @discardableResult
+    func saveCurrentNetworkAsTrustedPlace(name: String? = nil) -> TrustedPlace.SaveCheck {
+        let snapshot = trustedPlaces.refreshSnapshot()
+        let check = TrustedPlace.canSave(snapshot, existing: settings.trustedPlaces)
+        guard check == .ok,
+              let place = TrustedPlace.makePlace(
+                  from: snapshot,
+                  name: name,
+                  fallbackName: String(localized: "当前网络")
+              ) else { return check }
+        settings.trustedPlaces.append(place)
+        DiagnosticsLog.shared.append(.info, String(localized: "已保存信任场所「\(place.name)」"))
+        syncTrustedPlaceNow()
+        return .ok
+    }
+
+    func removeTrustedPlace(id: UUID) {
+        guard let place = settings.trustedPlaces.first(where: { $0.id == id }) else { return }
+        settings.trustedPlaces.removeAll { $0.id == id }
+        DiagnosticsLog.shared.append(.info, String(localized: "已删除信任场所「\(place.name)」"))
+        syncTrustedPlaceNow()
+    }
+
+    // MARK: - 辅助设备管理
+
+    /// 附近可选作辅助设备的候选：最近 30 秒内有有效信号、不是已绑定手表、尚未添加，按信号强弱排序。
+    func auxiliaryCandidates(limit: Int = 8, now: Date = Date()) -> [DiscoveredWatch] {
+        let chosen = Set(settings.auxiliaryDevices.map(\.id))
+        return scanner.allDevices.values
+            .filter { device in
+                device.rssi < 0
+                    && now.timeIntervalSince(device.lastSeen) <= 30
+                    && device.id.uuidString != settings.boundWatchID
+                    && !chosen.contains(device.id.uuidString)
+            }
+            .sorted { lhs, rhs in
+                // 有名字的优先：无名广播地址一轮换就无法续接，价值低。
+                if lhs.name.isEmpty != rhs.name.isEmpty { return !lhs.name.isEmpty }
+                return lhs.rssi > rhs.rssi
+            }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    func addAuxiliaryDevice(_ device: DiscoveredWatch) {
+        guard settings.auxiliaryDevices.count < PresenceFusion.maxDevices,
+              device.id.uuidString != settings.boundWatchID,
+              !settings.auxiliaryDevices.contains(where: { $0.id == device.id.uuidString }) else { return }
+        let entry = AuxiliaryDevice(
+            id: device.id.uuidString,
+            name: device.name,
+            advertisement: AppleAdvertisement.parse(device.manufacturerData)?.fingerprint
+        )
+        settings.auxiliaryDevices.append(entry)
+        scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
+        DiagnosticsLog.shared.append(.info, String(localized: "已添加辅助设备：\(entry.displayName)"))
+    }
+
+    func removeAuxiliaryDevice(id: String) {
+        guard let entry = settings.auxiliaryDevices.first(where: { $0.id == id }) else { return }
+        settings.auxiliaryDevices.removeAll { $0.id == id }
+        fusionEvidence.keepOnly(Set(settings.auxiliaryDevices.map(\.id)))
+        scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
+        DiagnosticsLog.shared.append(.info, String(localized: "已移除辅助设备：\(entry.displayName)"))
+    }
+
+    /// 辅助设备此刻是否有「在附近」的证据，供设置页展示。
+    func isAuxiliaryNear(id: String) -> Bool {
+        fusionEvidence.nearIDs(now: Date(), config: settings.fusionConfig).contains(id)
+    }
+
+    /// 最近一次读数（窗口内最强），供设置页展示。
+    func auxiliaryRSSI(id: String) -> Int? {
+        fusionEvidence.bestRSSI(id: id, now: Date(), window: settings.fusionConfig.freshness)
     }
 
     // MARK: - 蓝牙不可用期间（规则见 `BluetoothOutage`）
@@ -291,6 +579,10 @@ final class AppSession: ObservableObject {
         bluetoothState = scanner.bluetoothState
         scannerMessage = scanner.lastError
         syncBluetoothAvailability()
+        let housekeepingNow = Date()
+        driveTrustedPlace(now: housekeepingNow)
+        rebindAuxiliaryDevices(now: housekeepingNow)
+        driveFusion()
         driveLockGate()
 
         // 绑定后自动校准的收尾（手表长时间没有广播时也要结算）。
@@ -409,6 +701,9 @@ final class AppSession: ObservableObject {
 
     func resume() {
         settings.resume()
+        // 在信任场所内点「恢复」：这次直接恢复锁定，直到离开该场所（再次进入时重新生效）。
+        if settings.isTrustedPlacePausing { settings.trustedPlaceOverridden = true }
+        refreshConfig()
         updateStatus(engine.status)
     }
 
@@ -538,12 +833,12 @@ final class AppSession: ObservableObject {
         switch event {
         case .becameFar(let reason):
             unlocker.cancelPendingApproach()
-            if let grant = lockGate.request(reason: reason.title) {
-                performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
-            }
-            syncLockDeferralNote()
+            // 手表只是「没广播」时，附近有辅助设备就先别锁（手表明确很弱时不会暂缓）。
+            if holdForAuxiliary(reason: reason) { return }
+            requestLock(reason: reason.title)
         case .becameNear:
             lockGate.cancel()
+            cancelFusionHold()
             syncLockDeferralNote()
             guard isRunning, !monitor.isSystemSleeping else { return }
             // 锁屏不阻止显示器唤醒；显示器亮起与会话解锁分别由 monitor 跟踪。

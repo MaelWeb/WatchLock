@@ -21,10 +21,13 @@ struct DeviceRow: View {
 
             VStack(alignment: .leading, spacing: WLSpacing.xxs) {
                 Text(displayName)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                // 命中依据（名称 / 厂商数据等广播类型）是识别规则的调试信息，普通用户不展示。
+                if DeveloperMode.isEnabled {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
             }
 
             Spacer(minLength: WLSpacing.sm)
@@ -58,13 +61,10 @@ struct DeviceRow: View {
     }
 }
 
-/// 扫描状态行：让「列表为空」能自解释（蓝牙状态 / 是否在扫描 / 广播数）。
+/// 扫描状态行：让「列表为空」能自解释（蓝牙状态 / 是否在扫描）。
 struct ScannerStatusBar: View {
     let isScanning: Bool
     let bluetoothTitle: String
-    let deviceCount: Int
-    let discoveryCount: Int
-    var invalidRSSICount: Int = 0
     var message: String?
 
     var body: some View {
@@ -72,16 +72,6 @@ struct ScannerStatusBar: View {
             Text(isScanning ? String(localized: "扫描中") : String(localized: "未扫描"))
             separator
             Text("蓝牙：\(bluetoothTitle)")
-            separator
-            Text("记录 \(deviceCount) 台")
-            if discoveryCount > 0 {
-                separator
-                Text("已收到 \(discoveryCount) 条广播")
-                if invalidRSSICount > 0 {
-                    Text("（\(invalidRSSICount) 条无有效信号强度）")
-                        .foregroundStyle(WLColor.warning)
-                }
-            }
             if let message {
                 separator
                 Text(message).foregroundStyle(WLColor.danger)

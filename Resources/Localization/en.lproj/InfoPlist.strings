@@ -3,3 +3,4 @@
 "NSBluetoothPeripheralUsageDescription" = "WatchLock uses Bluetooth to measure the distance between your Apple Watch and this Mac.";
 "NSAppleEventsUsageDescription" = "Only used when \"Managed password entry\" is on, to type your login password to finish unlocking.";
 "NSUserNotificationUsageDescription" = "Used to alert you when the screen is locked automatically or a permission is missing.";
+"NSLocationUsageDescription" = "Only used so macOS lets WatchLock read the current Wi-Fi name, shown for your saved Trusted Places. Your location is never read or uploaded.";

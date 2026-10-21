@@ -15,8 +15,11 @@ struct DiagnosticsPage: View {
         VStack(alignment: .leading, spacing: WLSpacing.md) {
             tuningCard
             logCard
-            captureCard
-            debugCard
+            // 广播抓包与调试说明只给开发 / 排查用，普通用户不可见（见 `DeveloperMode`）。
+            if DeveloperMode.isEnabled {
+                captureCard
+                debugCard
+            }
         }
         .padding(WLSpacing.lg)
         .frame(minWidth: 460, maxWidth: .infinity, alignment: .topLeading)
@@ -129,8 +132,7 @@ struct DiagnosticsPage: View {
 
     private var debugCard: some View {
         FormCard(title: String(localized: "调试")) {
-            Toggle("菜单栏「更多」里显示调试子菜单（模拟信号）", isOn: $settings.debugMenuEnabled)
-            Text("开启后可从菜单栏直接注入 -50 / -65 / -85 dBm 或模拟信号丢失，不必真的走动就能验证锁定链路。也可以带环境变量启动：WATCHLOCK_FAKE_RSSI=-85")
+            Text("开发者模式已开启：菜单栏「更多」里有模拟信号子菜单，可注入 -50 / -65 / -85 dBm 或模拟信号丢失，不必真的走动就能验证锁定链路。也可以带环境变量启动：WATCHLOCK_FAKE_RSSI=-85")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -166,9 +168,6 @@ private struct AdvertisementCaptureSection: View {
             ScannerStatusBar(
                 isScanning: session.scanner.isScanning,
                 bluetoothTitle: session.bluetoothState.title,
-                deviceCount: devices.count,
-                discoveryCount: session.scanner.discoveryCount,
-                invalidRSSICount: session.scanner.invalidRSSICount,
                 message: session.scannerMessage
             )
 
@@ -212,12 +211,12 @@ private struct AdvertisementCaptureSection: View {
             return String(localized: "当前未在扫描。请确认「通用」里自动锁定已开启且未暂停。")
         }
         if session.scanner.discoveryCount == 0 {
-            return String(localized: "暂未发现任何 BLE 广播。请确认手表在旁边且蓝牙开启；若仍为空，把诊断日志导出发我。")
+            return String(localized: "暂未发现任何 BLE 广播。请确认手表在旁边且蓝牙开启。")
         }
         if devices.isEmpty {
-            return String(localized: "已收到 \(session.scanner.discoveryCount) 条广播但没有设备被记录下来，这不应发生 —— 请用上方「诊断日志 → 导出」把日志发我。")
+            return String(localized: "暂未记录到设备。请确认手表在旁边且蓝牙开启。")
         }
-        return String(localized: "扫描到了 \(session.scanner.discoveryCount) 条广播，但系统未提供有效信号强度（RSSI=127，macOS 已知行为），锁定判定暂不可用。可尝试关闭再打开 Mac 蓝牙；广播内容已记录在下方。")
+        return String(localized: "系统暂未提供有效的信号强度，可尝试关闭再打开 Mac 蓝牙。")
     }
 
     private func rssiText(_ device: DiscoveredWatch) -> String {

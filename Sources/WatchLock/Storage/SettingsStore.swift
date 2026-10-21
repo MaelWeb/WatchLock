@@ -28,12 +28,15 @@ final class SettingsStore: ObservableObject {
         static let showRSSIInMenuBar = "settings.showRSSIInMenuBar"
         static let notificationsEnabled = "settings.notificationsEnabled"
         static let debugLogging = "settings.debugLogging"
-        static let debugMenuEnabled = "settings.debugMenuEnabled"
         static let confirmBeforeLock = "settings.confirmBeforeLock"
         static let meetingExemptionEnabled = "settings.meetingExemptionEnabled"
         static let meetingMaxDeferralMinutes = "settings.meetingMaxDeferralMinutes"
         static let rearmAfterManualUnlock = "settings.rearmAfterManualUnlock"
         static let rearmIdleMinutes = "settings.rearmIdleMinutes"
+        static let trustedPlaceEnabled = "settings.trustedPlaceEnabled"
+        static let trustedPlaces = "settings.trustedPlaces"
+        static let fusionEnabled = "settings.fusionEnabled"
+        static let auxiliaryDevices = "settings.auxiliaryDevices"
         static let hasCompletedOnboarding = "settings.hasCompletedOnboarding"
         static let autoLockCount = "stats.autoLockCount"
         static let falseLockCount = "stats.falseLockCount"
@@ -89,7 +92,6 @@ final class SettingsStore: ObservableObject {
         showRSSIInMenuBar = defaults.object(forKey: Key.showRSSIInMenuBar) as? Bool ?? false
         notificationsEnabled = defaults.object(forKey: Key.notificationsEnabled) as? Bool ?? true
         debugLogging = defaults.object(forKey: Key.debugLogging) as? Bool ?? false
-        debugMenuEnabled = defaults.object(forKey: Key.debugMenuEnabled) as? Bool ?? false
         confirmBeforeLock = defaults.object(forKey: Key.confirmBeforeLock) as? Bool ?? false
         meetingExemptionEnabled = defaults.object(forKey: Key.meetingExemptionEnabled) as? Bool ?? false
         meetingMaxDeferralMinutes = Self.clamp(
@@ -102,6 +104,11 @@ final class SettingsStore: ObservableObject {
             Defaults.rearmIdleRange
         )
         hasCompletedOnboarding = defaults.object(forKey: Key.hasCompletedOnboarding) as? Bool ?? false
+        // 两个开关默认开启，但在用户主动保存信任场所 / 选择辅助设备之前不会产生任何效果。
+        trustedPlaceEnabled = defaults.object(forKey: Key.trustedPlaceEnabled) as? Bool ?? true
+        trustedPlaces = Self.decode(defaults.data(forKey: Key.trustedPlaces))
+        fusionEnabled = defaults.object(forKey: Key.fusionEnabled) as? Bool ?? true
+        auxiliaryDevices = Self.decode(defaults.data(forKey: Key.auxiliaryDevices))
         autoLockCount = defaults.object(forKey: Key.autoLockCount) as? Int ?? 0
         falseLockCount = defaults.object(forKey: Key.falseLockCount) as? Int ?? 0
     }
@@ -138,8 +145,6 @@ final class SettingsStore: ObservableObject {
     @Published var showRSSIInMenuBar: Bool { didSet { defaults.set(showRSSIInMenuBar, forKey: Key.showRSSIInMenuBar) } }
     @Published var notificationsEnabled: Bool { didSet { defaults.set(notificationsEnabled, forKey: Key.notificationsEnabled) } }
     @Published var debugLogging: Bool { didSet { defaults.set(debugLogging, forKey: Key.debugLogging) } }
-    /// 菜单栏是否显示「调试」子菜单（模拟信号等，见 AppSession 的模拟能力）。
-    @Published var debugMenuEnabled: Bool { didSet { defaults.set(debugMenuEnabled, forKey: Key.debugMenuEnabled) } }
     /// 菜单栏「立即锁定」点击后是否先弹确认（默认关闭，保持一键锁屏的效率）。
     @Published var confirmBeforeLock: Bool { didSet { defaults.set(confirmBeforeLock, forKey: Key.confirmBeforeLock) } }
 
@@ -170,17 +175,62 @@ final class SettingsStore: ObservableObject {
     /// FR-01：首次启动引导是否已完成。
     @Published var hasCompletedOnboarding: Bool { didSet { defaults.set(hasCompletedOnboarding, forKey: Key.hasCompletedOnboarding) } }
 
+    // MARK: - 信任场所 / 辅助设备
+
+    private static func decode<T: Decodable>(_ data: Data?) -> [T] {
+        guard let data, let value = try? JSONDecoder().decode([T].self, from: data) else { return [] }
+        return value
+    }
+
+    /// 在用户保存的信任场所内暂停自动锁定。没有保存任何场所时不产生效果。
+    @Published var trustedPlaceEnabled: Bool {
+        didSet { defaults.set(trustedPlaceEnabled, forKey: Key.trustedPlaceEnabled) }
+    }
+    @Published var trustedPlaces: [TrustedPlace.Place] {
+        didSet { defaults.set(try? JSONEncoder().encode(trustedPlaces), forKey: Key.trustedPlaces) }
+    }
+
+    /// 让辅助设备（iPhone / AirPods）在「手表信号丢失」时暂缓锁定。没有选择任何设备时不产生效果。
+    @Published var fusionEnabled: Bool {
+        didSet { defaults.set(fusionEnabled, forKey: Key.fusionEnabled) }
+    }
+    @Published var auxiliaryDevices: [AuxiliaryDevice] {
+        didSet { defaults.set(try? JSONEncoder().encode(auxiliaryDevices), forKey: Key.auxiliaryDevices) }
+    }
+
+    var fusionConfig: PresenceFusion.Config {
+        .init(enabled: fusionEnabled && !auxiliaryDevices.isEmpty)
+    }
+
     /// 自动锁定次数（自动调统样本分母）。
     @Published var autoLockCount: Int { didSet { defaults.set(autoLockCount, forKey: Key.autoLockCount) } }
     /// 用户标记为「误锁」的次数。
     @Published var falseLockCount: Int { didSet { defaults.set(falseLockCount, forKey: Key.falseLockCount) } }
 
+    /// 当前所处的信任场所名称。**运行时状态，不落盘**，由 `AppSession` 根据网络环境维护。
+    ///
+    /// 放在这里是为了让 `isPaused` 成为「是否暂停」的唯一出口：`UnlockService`、菜单栏、
+    /// 扫描占空策略等所有已有的 `isPaused` 判断无需逐个修改就自动尊重信任场所。
+    @Published var activeTrustedPlaceName: String?
+    /// 用户在菜单栏点了「恢复」：在离开当前场所之前不再按信任场所暂停。
+    @Published var trustedPlaceOverridden = false
+
+    /// 是否正因「处于信任场所」而暂停（与手动暂停独立，两者任一成立即视为暂停）。
+    var isTrustedPlacePausing: Bool {
+        trustedPlaceEnabled && activeTrustedPlaceName != nil && !trustedPlaceOverridden
+    }
+
+    /// 仅手动暂停（菜单栏「暂停 N 分钟」）是否仍在有效期内。
+    func isManuallyPaused(now: Date) -> Bool {
+        guard let pauseUntil else { return false }
+        return pauseUntil > now
+    }
+
     var isPaused: Bool { isPaused(now: Date()) }
 
     /// 传入显式时间便于单元测试（FR-06 暂停到期自动恢复）。
     func isPaused(now: Date) -> Bool {
-        guard let pauseUntil else { return false }
-        return pauseUntil > now
+        isManuallyPaused(now: now) || isTrustedPlacePausing
     }
 
     func pause(minutes: Double) {

@@ -8,6 +8,7 @@ import SwiftUI
 enum SettingsPage: String, CaseIterable, Identifiable {
     case general
     case device
+    case places
     case unlock
     case calibration
     case diagnostics
@@ -19,6 +20,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .general: return String(localized: "通用")
         case .device: return String(localized: "设备")
+        case .places: return String(localized: "场所")
         case .unlock: return String(localized: "解锁")
         case .calibration: return String(localized: "校准")
         case .diagnostics: return String(localized: "诊断")
@@ -30,6 +32,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape"
         case .device: return "applewatch"
+        case .places: return "mappin.and.ellipse"
         case .unlock: return "lock.open"
         case .calibration: return "ruler"
         case .diagnostics: return "stethoscope"
@@ -105,6 +108,7 @@ struct SettingsView: View {
         switch page {
         case .general: GeneralPage()
         case .device: DevicePage()
+        case .places: PlacesPage()
         case .unlock: UnlockPage()
         case .calibration: CalibrationPage()
         case .diagnostics: DiagnosticsPage()

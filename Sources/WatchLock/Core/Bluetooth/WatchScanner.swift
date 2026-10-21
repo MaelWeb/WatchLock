@@ -21,7 +21,6 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
     @Published private(set) var lastError: String?
     /// 收到的广播总数，以及其中 RSSI 无效（127）的数量——用于诊断「扫描中却看不到设备」。
     @Published private(set) var discoveryCount = 0
-    @Published private(set) var invalidRSSICount = 0
 
     /// 每次发现（含重复广播）都会回调，携带外设 ID 与 RSSI。
     var onRSSI: ((UUID, Int, Date) -> Void)?
@@ -31,6 +30,11 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
 
     /// 用户已绑定的手表 ID；命中后始终作为候选。
     var boundIdentifier: UUID?
+
+    /// 辅助设备（iPhone / AirPods 等）的外设标识。命中且 RSSI 有效时走 `onAuxiliaryRSSI`，
+    /// **不会**进入手表的候选列表，也不会喂给距离状态机。
+    var auxiliaryIdentifiers: Set<UUID> = []
+    var onAuxiliaryRSSI: ((UUID, Int, Date) -> Void)?
 
     private var central: CBCentralManager!
     private var shouldScan = false
@@ -162,7 +166,6 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         // RSSI = 127 是 CoreBluetooth 的「不可用」哨兵值。macOS 部分状态下会对所有广播都上报 127，
         // 此时不能把整个扫描结果丢掉：设备与广播内容照常记录（抓包/诊断用），
         // 只是不喂给距离状态机（会被当成极近信号），也不进候选列表。
-        if rssi >= 0 { invalidRSSICount += 1 }
 
         let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
             ?? peripheral.name
@@ -192,6 +195,10 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         raw.serviceUUIDs = Set(serviceUUIDs.map(\.uuidString))
         raw.manufacturerData = manufacturerData
         allDevices[peripheral.identifier] = raw
+
+        if rssi < 0, auxiliaryIdentifiers.contains(peripheral.identifier) {
+            onAuxiliaryRSSI?(peripheral.identifier, rssi, now)
+        }
 
         // RSSI 无效时不进候选、不喂距离状态机，但设备已记录（见上方说明），
         // 并且要告诉上层「手表还在广播」，避免被当成信号丢失而锁屏。

@@ -117,9 +117,10 @@ SIGN_IDENTITY=- RELEASE_VERSION=0.4.0 BUILD_NUMBER=1 ./Scripts/build-dmg.sh --un
 # 方式一：环境变量，启动即持续注入固定信号
 WATCHLOCK_FAKE_RSSI=-85 dist/WatchLock.app/Contents/MacOS/WatchLock
 
-# 方式二：设置 → 诊断 → 调试 → 打开「菜单栏『更多』里显示调试子菜单」
-#         然后菜单栏 → 更多 → 模拟信号 → 选择 -50 / -65 / -85 dBm 或「信号丢失」
+# 方式二：开启开发者模式（见下），然后菜单栏 → 更多 → 模拟信号 → 选择 -50 / -65 / -85 dBm 或「信号丢失」
 ```
+
+**开发者模式**（`DeveloperMode`）：模拟信号子菜单、诊断页的「广播抓包」与「调试」卡、设备列表的广播类型、引导页的广播详情，都只在开发者模式下可见，普通用户界面上没有任何入口。开启方式任选其一：Debug 构建（`swift build` / `swift run`）自动开启；`WATCHLOCK_DEVELOPER=1` 环境变量启动；`defaults write <bundle id> developerMode -bool YES` 后重启。
 
 模拟期间真实广播被忽略；模拟触发的锁定同样会计入自动调参样本，可在「诊断 → 误锁反馈与自动调参」里点「恢复默认阈值」重置。
 
