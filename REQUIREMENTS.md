@@ -166,6 +166,7 @@ stateDiagram-v2
 | FR-18 | 手动检查更新 | P2 | M4 |
 | FR-19 | 信任场所自动暂停 | P2 | M5 |
 | FR-20 | 辅助信号源（iPhone / AirPods）融合 | P2 | M5 |
+| FR-21 | 锁定记录与导出 | P2 | M6 |
 
 ---
 
@@ -370,6 +371,16 @@ stateDiagram-v2
 6. **未验证**：−80 dBm 的默认阈值是按经验取的，没有用真实 iPhone / AirPods 逐一标定；iPhone 息屏后广播会停止（论坛报告，未取得一手原文），实际效果取决于设备状态；AirPods 在耳 / 在盒是否有可区分的广播没有实测，因此不区分。
 7. **实现说明**：`PresenceFusion`（纯逻辑：证据窗口 `Evidence`、暂缓状态机 `Hold`、续接目标 `rebindTarget`）；`WatchScanner` 对辅助设备走独立回调，**不进入手表候选列表、不喂距离状态机**；单测覆盖证据窗口、各放行条件、上限不可延长、续接。
 
+### FR-21 锁定记录与导出（P2，M6）
+
+1. 每次**真正执行**的锁定留一条记录：时间、来源（自动 / 手动 / 重新布防）、原因、锁定时的信号强度与估算距离、是否被标记为误锁。被拦截的锁定（暂停、宽限期、已锁屏、缺权限）不记录。
+2. 记录落盘在 `~/Library/Application Support/WatchLock/lock-history.json`，最多 200 条（超出丢弃最旧），重启后仍在；只存本机，不上传。文件损坏时按空记录处理，不影响锁定。
+3. 「设置 → 诊断 → 锁定记录」显示最近 4 条，支持**导出 CSV**（RFC 4180 转义，列：`time,kind,reason,rssi_dbm,distance_m,marked_false`，时间为带时区的 ISO 8601）与清空（二次确认）。完整记录靠导出查看，避免诊断页出现嵌套滚动。
+4. 与诊断日志的区别：日志是 300 条环形流水、面向排查；记录面向「它什么时候、为什么锁了我的 Mac」，满足 NFR-07 可追溯。
+5. **顺带修复**：菜单栏「记为误锁」此前可对同一次锁定连点，每点一次都会累加误锁计数、把误锁率刷高并触发不该有的自动放宽；现在反馈一次后入口立即失效。
+6. 信号读数规则：RSSI ≥ 0（含 127）与距离 ≤ 0 记为空；手表失联时的读数是失联前最后一次平滑值，不是锁定瞬间的真实信号。
+7. **实现说明**：`LockHistory`（纯逻辑：追加截断、误锁标记、CSV、读数换算）与 `LockHistoryStore`（JSON 读写）；单测覆盖截断、只标记最近一次自动锁定、窗口边界、重复标记、CSV 转义与时区、存储往返 / 损坏 / 超限。
+
 ---
 
 ## 8. 非功能需求
@@ -468,6 +479,7 @@ stateDiagram-v2
 
 | ADR-14 | 信任场所以**默认网关 MAC**为主依据，SSID 仅作可选增强；暂停状态不落盘，且经 `SettingsStore.isPaused` 统一出口叠加到手动暂停上 | 以 SSID 为主依据；Wi-Fi 之外再加地理围栏；把「在场所」写成手动暂停的一种 | 本机实测（macOS 26.6.1，2026-10-20）无定位授权时 `CWInterface.ssid()/bssid()` 为 `nil`，`ipconfig` 为 `<redacted>`，而网关 MAC 无需授权即可经 ARP 表读到；ad-hoc 签名下定位授权能否跨升级保留**待验证**（DTS 说法转引自社区，原帖未取得一手原文），所以不能把核心功能押在 SSID 上。用 `isPaused` 作唯一出口，`UnlockService`、扫描占空、菜单栏等既有判断无需逐个改动即自动尊重场所；与手动暂停分开，才不会互相延长或覆盖。已知限制：网关 MAC 可被 ARP 欺骗，定位为便利功能而非安全边界 |
 | ADR-15 | 多信号源融合里辅助设备（iPhone / AirPods）**只能延缓「信号丢失」引起的锁定**，不能触发锁定、不能推翻「手表信号明确很弱」，且有 2 分钟硬上限 | 多设备投票 / 加权融合；辅助设备在场即否决一切离开；辅助设备远离也触发锁定 | 用户明确「iPhone、AirPods 只做辅助」。实测 iPhone 与手表同为 Continuity 类型 `0x10`、地址轮换、息屏后广播会停，作为独立信号源不可靠；最常见的误用场景是手机落在桌上人走开，任何允许辅助设备「否决明确读数」的设计都会让锁屏失效。把权力限定在「手表只是没广播」这一种已知误锁路径（`docs/anti-false-lock-research.md` 证据 1~2），并以硬上限兜底 |
+| ADR-16 | **不做**「蓝牙被关闭时也锁定」：蓝牙不可用期间保持 FR-09 的既有行为（暂停信号丢失结算 + 通知），不新增锁定路径 | 蓝牙关闭持续 N 秒后锁屏的可选开关（曾实现后回退） | 唯一来源是 v1.15 的一句假设（「若安全优先的用户希望关蓝牙也锁」），**没有用户反馈或实测**；用户关蓝牙通常是自己所为，系统的「息屏后要求密码」是通用兜底；该功能要新增一条锁定路径，唤醒瞬间蓝牙状态是否短暂为 `poweredOff` 又无法验证，不符合 `watchlock-feature-scope.md` 的准入门槛。**重新评估的触发条件**：出现真实的「关了蓝牙别人就能用我的 Mac」反馈 |
 
 ---
 
@@ -481,6 +493,7 @@ stateDiagram-v2
 | M3.5 | v0.4.0 | UI 重构与设计规范、品牌 logo 与图标、菜单栏五态图标、产品化 README、开源许可 | 对外发布前的体验与品牌打磨（**已完成**，当前阶段） |
 | M4 | v1.0.0 | GitHub Actions 通用 DMG 打包与 GitHub Release（流水线已实现）；FR-15 本地化、帮助手册（已实现）、FR-18 手动检查更新（已实现）；Developer ID 签名 / 公证为可选增强 | GitHub Release 对外发布（不发布 App Store） |
 | M5 | — | FR-19 信任场所自动暂停、FR-20 辅助信号源融合（代码与单测已完成，**未在真机验收**） | 场景化体验增强 |
+| M6 | — | FR-21 锁定记录与导出（代码与单测已完成，**未在真机验收**） | 可追溯 |
 
 ### 13.1 当前代码与需求的对照
 
@@ -507,14 +520,15 @@ stateDiagram-v2
 | 品牌标识与状态图标 | 已实现（logo 提炼「环形锁体 + 锁梁」，应用图标 `.icns` + 代码绘制的模板图；**菜单栏与面板状态卡同源**，经 `StatusIcon`） | `UI/Design/BrandLogo.swift`、`UI/Design/MenuBarIcon.swift`、`UI/Design/StatusIcon.swift`、`docs/logo/` |
 | GitHub Release 发布链路 | 流水线已实现（手动选择 patch / minor / major 自动递增版本、打包后创建标签并在同一次运行发布；保留已有标签发布与 build-only 仅打包；重跑复用本次标签；默认 ad-hoc，首次云端执行待验证） | `.github/workflows/release.yml`、`Scripts/next-version.py`、`Scripts/build-app.sh`、`Scripts/build-dmg.sh` |
 | 发布版本测试 | 已实现（15 例，覆盖递增、数值排序、预发布过滤、初始版本及同一流水线重跑保护） | `Tests/ReleaseTests/test_next_version.py` |
+| FR-21 锁定记录 | 已实现（JSON 落盘 200 条、诊断页卡片、CSV 导出；顺带修复误锁反馈可重复点击） | `Core/Lock/LockHistory.swift`、`UI/Settings/LockHistoryCard.swift`、`App/AppSession.swift` |
 | 开源许可 | PolyForm Noncommercial 1.0.0（禁止商用） | `LICENSE` |
-| 单元测试 | 已实现（189 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为 / 前置条件探测 / 会话锁定校正 / 监听活动） | `Tests/WatchLockTests` |
+| 单元测试 | 已实现（312 个用例，覆盖状态机 / 命令拼装 / 识别规则 / 限流 / 设置 / 校准 / 调参 / 广播解析 / UI 逻辑 / 菜单栏图标 / 私有接口锁屏的注入式行为 / 前置条件探测 / 会话锁定校正 / 监听活动） | `Tests/WatchLockTests` |
 
 ---
 
 ## 14. 测试与验收
 
-### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 189 例）
+### 14.1 单元测试（`Tests/WatchLockTests`，`swift test` 共 312 例）
 
 | 用例 | 输入 | 期望 |
 | --- | --- | --- |
@@ -619,3 +633,4 @@ stateDiagram-v2
 | v1.22 | 2026-10-20 | **应用图标按 Apple 规范重做**（用户要求「所有图标按 Apple 规范调整，母版去掉多余留白」；取代 v1.21 的「抠透明」做法）：**依据**：HIG · App icons（2026 版）要求提供「方形、未遮罩」图层，由系统遮罩并生成高光，背景图层须铺满且不透明，不要自带阴影；预遮罩图层会让高光失真、边缘锯齿。社区实测 macOS 26 会把只有旧式 `.icns` 的 App 缩进灰色圆角底板。**做法**：①母版 `docs/logo/AppIcon-master.png` 由「圆角 + 四周约 5% 留白 + 假棋盘格」改为 1024 **铺满、不透明、无圆角、无留白**的方图（实测原图渐变为干净的对角线性渐变，仿射拟合残差 2~3，按此外推到四角；锁形按 `p = bg + α(255−bg)` 反推 alpha，并清掉 404 处 AI 生成残留的微小噪点）；②新增 `Resources/AppIcon.icon`（Icon Composer 文档：背景图层 + 白色锁形图层），成为图标**唯一源**；③`build-app.sh` 改用 `xcrun actool` 现编，产出 `Assets.car`（macOS 26 的 Liquid Glass 图标）+ 回退 `AppIcon.icns`（macOS 14 / 15，actool 按 Apple 网格生成，主体占画布约 81%），`Info.plist` 增 `CFBundleIconName`；④删除入库的 `Resources/AppIcon.icns`，`generate-icons.sh` 改为从 `.icon` 导出母版 + README 效果图 `docs/logo/AppIcon.png`；⑤去掉 `AppDelegate` 启动时设置 `NSApp.applicationIconImage`（会用平面位图盖掉系统图标）；`BrandLogo` 改取系统合成的应用图标并去掉自加的 `shadow`；⑥新增 `AppIconSourceTests` 5 例（背景铺满不透明、四角不是白色、锁形不贴边且不过小、`icon.json` 引用的图层存在、`CFBundleIconName` 存在、不再提交 `.icns`），并用旧母版做过反向验证（4 个角全部报错）。**其余图标核查**：菜单栏状态图标已是黑 + 透明的模板图（`isTemplate`），符合 HIG 对 menu bar extra 的要求（HIG 对其尺寸无数值规定，仅说明菜单栏高 24pt），不改；应用内其余图标均为 SF Symbols。**核对方式**：打出真实 `WatchLock.app`，用 `NSWorkspace` 取系统渲染的图标，与 Xcode 图标并排对比（形状、占比 81.6%、玻璃边缘光、投影一致，没有灰色底板），再在 72 / 24 / 16pt 的浅色与深色底上目检。**已知取舍 / 未验证**：HIG 页面没有给出 824/1024 之类的数值，网格比例以 actool 实际产出为准；`ictool` 的 `fill.orientation` 在本机版本无效，因此渐变放进背景图层而不是 `icon.json` 的 `fill`；回退 `icns` 只含 16 / 32 / 128 / 256 四档（actool 产出），macOS 14 / 15 上超大预览会放大；macOS 14 / 15 真机未看；Dock 与 Finder 的图标缓存可能需要 `killall Dock` 才刷新；App 内关于页的 `applicationIconImage` 只验证了同源的 `NSWorkspace` 渲染，未在运行中的窗口里目检；未提交 |
 | v1.23 | 2026-10-20 | **信任场所自动暂停（FR-19）与辅助信号源融合（FR-20）**（用户指定：「信任场所」接受定位权限，「多信号源融合」要做且 iPhone / AirPods 只做辅助；Developer ID 公证因无开发者账号继续搁置）：①**信任场所**：新增 `TrustedPlace`（MAC 归一化 / 匹配 / 防抖状态机）、`NetworkProbe`（SCDynamicStore 读网关 IP + `sysctl(NET_RT_FLAGS)` 读 ARP 表，`parseARP` 纯函数）、`WiFiNameAccess`（定位授权状态）、`TrustedPlaceMonitor`；`SettingsStore.isPaused` 改为「手动暂停 || 在场所且未覆盖」，`activeTrustedPlaceName` / `trustedPlaceOverridden` 为运行时状态不落盘；设置页新增「场所」页，菜单栏新增场所提示条（「恢复」只对本次停留有效）。**依据（本机实测，macOS 26.6.1）**：无定位授权时 `CWInterface.ssid()/bssid()` 为 `nil`、`SCDynamicStore` 里 SSID 是占位值、`ipconfig getsummary` 为 `<redacted>`；网关 IP 可由 `State:/Network/Global/IPv4` 读到，网关 MAC 可经 sysctl 读 ARP 表且与 `arp -an` 一致，所以主依据用网关 MAC。**Apple 文档（已核对原文）**：定位授权在 macOS 上 When in Use 与 Always 等价、macOS 专用键是 `NSLocationUsageDescription`、缺键时授权请求立即失败；Location entitlement `com.apple.security.personal-information.location` 页面写明「启用 App Sandbox **或** Hardened Runtime 后可添加」。②**辅助信号源融合**：新增 `PresenceFusion`（证据窗口 / 暂缓状态机 / 地址轮换续接），`WatchScanner` 对辅助设备走独立回调（不进手表候选、不喂距离状态机），设备页新增「辅助设备」卡片；`AppSession` 在状态机判定离开时先问融合层（只对「信号丢失」生效），1 秒结算暂缓，到点 / 辅助设备离开 / 手表重新出现且很弱 / 功能关闭都立即放行。③`Info.plist` + 中英 `InfoPlist.strings` 增 `NSLocationUsageDescription`，entitlements 增 Location；本地化新增 68 条英文译文。④新增单测：`TrustedPlaceTests`（32）、`TrustedPlaceMonitorTests`（6）、`PresenceFusionTests`（28）、`SettingsStoreTests` +6。**未验证 / 已知限制**：未做浏览器 / 真机验收（含场所页与辅助设备卡片的实际渲染、菜单栏提示条）；ad-hoc 签名下定位授权能否跨升级保留**待验证**（DTS 说法转引自社区，论坛原帖被反爬拦截，未取得一手原文）；`LSUIElement` 应用能否弹出定位授权框未真机验证（已在请求前临时激活应用）；非沙盒 + Hardened Runtime 下该 entitlement 是否必需，文档只说「可添加」，未实测对 SSID 读取的影响；辅助设备 −80 dBm 阈值未用真机标定，iPhone 息屏停播来自论坛报告（未取得一手原文），AirPods 在耳 / 在盒是否可区分未实测；网关 MAC 可被 ARP 欺骗；未提交 |
 | v1.24 | 2026-10-21 | **去掉开发阶段的界面遗留，调试能力收进开发者模式**（用户反馈）：①删除设备页 / 诊断页状态行里的「记录 x 台」「已收到 x 条广播（x 条无有效信号强度）」，空状态提示里带数量和「把日志发我」的话术改为面向用户的说明，`WatchScanner.invalidRSSICount` 已无用途删除；②新增 `DeveloperMode`：Debug 构建自动开启，release 构建需 `WATCHLOCK_DEVELOPER=1` 或 `defaults write <bundle id> developerMode -bool YES`。**仅开发者模式可见**：设备列表行的广播类型 / 命中依据副标题、引导页的广播详情与「复制诊断信息」、诊断页的「广播抓包」与「调试」卡、菜单栏「更多」里的模拟信号子菜单；③删除 `SettingsStore.debugMenuEnabled`（原先用户可在诊断页自行打开，现改由开发者模式统一控制，旧偏好值无副作用）。**核对方式**：debug 与 release 构建均通过（release 走非 DEBUG 分支），291 项单测通过（新增 `DeveloperModeTests` 3 项）。**未验证**：未做浏览器 / 真机验收，设备行去掉副标题后的实际观感未目检；引导页「看不到设备？显示全部」在普通用户下仍会列出全部设备（只是不再显示广播详情），是否保留该入口待你确认 |
+| v1.25 | 2026-10-21 | ①**锁定记录（FR-21）**：每次实际执行的锁定落一条本地记录（最多 200 条，JSON），诊断页新增「锁定记录」卡与 CSV 导出；②**修复**：菜单栏「记为误锁」可对同一次锁定重复点击，会虚增误锁率并触发不该有的自动放宽，现反馈一次即失效；③**新增功能准入规则**（`.codebuddy/rules/watchlock-feature-scope.md`）：新增功能须先做需求分析并给评估、经确认后才实现；按该规则复评后**回退了同一批里的「蓝牙被关闭时也锁定」**（ADR-16，无真实依据、新增锁定路径）。④**README 与实现对齐**：权限表与「最小权限」补上可选的定位服务（此前写「只申请三项」，与信任场所实际会请求定位不符）、功能表补信任场所 / 辅助设备 / 锁定记录、已知限制补网关可伪造与辅助设备的广播依赖、隐私问答补定位说明。Swift 单测 291 → 312 例，本地化键同步，`swift build`（debug / release）通过。**未验证**：未做浏览器 / 真机验收（锁定记录卡的实际渲染、英文界面布局）；未提交 |

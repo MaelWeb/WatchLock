@@ -9,6 +9,8 @@ import Foundation
 ///
 /// 这里的取舍：**蓝牙不可用不等于手表离开**，所以期间暂停丢失结算、发通知说明原因；
 /// 恢复后重置状态机并给一段宽限期，避免恢复瞬间用陈旧状态误判。
+///
+/// 「蓝牙关闭时也锁定」评估后决定不做（`REQUIREMENTS.md` ADR-16）。
 enum BluetoothOutage {
     enum Transition: Equatable {
         case none

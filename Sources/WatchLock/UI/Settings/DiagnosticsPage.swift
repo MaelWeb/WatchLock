@@ -14,6 +14,7 @@ struct DiagnosticsPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: WLSpacing.md) {
             tuningCard
+            LockHistoryCard()
             logCard
             // 广播抓包与调试说明只给开发 / 排查用，普通用户不可见（见 `DeveloperMode`）。
             if DeveloperMode.isEnabled {

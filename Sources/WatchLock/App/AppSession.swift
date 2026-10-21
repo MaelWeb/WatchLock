@@ -21,6 +21,8 @@ final class AppSession: ObservableObject {
     lazy var lockGate = LockGate(config: { [weak self] in self?.settings.lockGateConfig ?? .init() })
     /// 信任场所：探测网络环境，进入已保存的场所时暂停自动锁定（规则见 `TrustedPlace`）。
     let trustedPlaces = TrustedPlaceMonitor()
+    /// 锁定记录（FR-21）：每次真正执行的锁定留一条，重启后仍在。
+    let lockHistory = LockHistoryStore.shared
 
     /// 菜单栏提示：自动锁定因会议 / 演示被暂缓。
     @Published private(set) var lockDeferralNote: String?
@@ -282,7 +284,7 @@ final class AppSession: ObservableObject {
             return
         }
         if let grant = lockGate.tick(watchIsFar: engine.status == .far) {
-            performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
+            performLock(reason: grant.reason, kind: grant.isRearm ? .rearm : .automatic)
         }
         syncLockDeferralNote()
     }
@@ -295,7 +297,7 @@ final class AppSession: ObservableObject {
     /// 状态机要求锁屏：先过会议 / 演示闸门，再执行锁定。
     private func requestLock(reason: String) {
         if let grant = lockGate.request(reason: reason) {
-            performLock(reason: grant.reason, isAutomatic: !grant.isRearm)
+            performLock(reason: grant.reason, kind: grant.isRearm ? .rearm : .automatic)
         }
         syncLockDeferralNote()
     }
@@ -709,7 +711,7 @@ final class AppSession: ObservableObject {
 
     /// 菜单栏中的「立即锁定」。
     func lockNow() {
-        performLock(reason: String(localized: "手动锁定"), isAutomatic: false)
+        performLock(reason: String(localized: "手动锁定"), kind: .manual)
     }
 
     /// 用户反馈「刚才这次是误锁」，触发自动调参（M3）。
@@ -718,6 +720,10 @@ final class AppSession: ObservableObject {
             DiagnosticsLog.shared.append(.warning, String(localized: "没有可反馈的自动锁定，忽略误锁反馈"))
             return
         }
+        // 同一次锁定只能反馈一次：否则连点「记为误锁」会把误锁率越刷越高，触发不该有的自动放宽。
+        lockHistory.markLatestAutomaticAsFalse(now: now, window: falseLockReportWindow)
+        lastAutoLockAt = nil
+        falseLockFeedbackAvailable = false
         guard let suggestion = settings.recordFalseLock() else {
             tuningMessage = String(localized: "已记录误锁反馈，当前误锁率未超阈值，暂不调整")
             DiagnosticsLog.shared.append(.info, String(localized: "记录误锁反馈（暂不调整阈值）"))
@@ -846,7 +852,7 @@ final class AppSession: ObservableObject {
         }
     }
 
-    private func performLock(reason: String, isAutomatic: Bool = true) {
+    private func performLock(reason: String, kind: LockHistory.Record.Kind = .automatic) {
         guard settings.isEnabled, !settings.isPaused else {
             DiagnosticsLog.shared.append(.warning, String(localized: "已暂停或已关闭，跳过锁定：\(reason)"))
             return
@@ -877,8 +883,16 @@ final class AppSession: ObservableObject {
         guard locker.lock() else { return }
         lastLockReason = reason
         lastLockAt = Date()
+        let reading = LockHistory.reading(rssi: smoothedRSSI, distance: estimatedDistance)
+        lockHistory.record(.init(
+            date: Date(),
+            kind: kind,
+            reason: reason,
+            rssi: reading.rssi,
+            distance: reading.distance
+        ))
 
-        if isAutomatic {
+        if kind == .automatic {
             settings.recordAutoLock()
             lastAutoLockAt = Date()
             tuningMessage = nil

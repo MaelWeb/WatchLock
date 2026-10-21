@@ -30,7 +30,7 @@ The panel lets you lock now, pause, see the live signal against the thresholds, 
 - **Device**: bind or unbind the watch; optionally pick up to 3 "auxiliary devices" (iPhone, AirPods, …): if the watch merely stops advertising while a device you chose is still nearby, locking is held off. Auxiliary devices **only postpone** locks caused by "signal lost" (for at most 2 minutes); they never lock the Mac by themselves and cannot override a clearly weak watch signal. An iPhone may stop advertising once its screen is off, so results depend on the device's state.
 - **Places**: save the current network as a "trusted place" (home, office); auto-lock pauses while you are connected to it and resumes when you leave. The menu bar shows a notice, and Resume re-enables locking for the current stay. Networks are recognized by their gateway and need no permission; the Wi-Fi name needs Location permission and is optional. Other devices on the same network can spoof the fingerprint, so this is a convenience feature, not a security boundary.
 - **Calibration**: the wizard; adjust the "near" and "away" thresholds.
-- **Diagnostics**: false-lock stats and auto tuning, diagnostic log.
+- **Diagnostics**: false-lock stats and auto tuning, lock history (time, reason and signal of every lock that ran; stored on this Mac, exportable as CSV), diagnostic log.
 - **About**: version, rerun onboarding, check for updates, open this manual.
 
 ## 4. FAQ
