@@ -9,14 +9,11 @@ struct AuxiliaryDevicesCard: View {
     @EnvironmentObject private var session: AppSession
     @ObservedObject private var settings = SettingsStore.shared
 
-    /// 周期刷新，让「在附近」「信号」读数与候选列表保持新鲜。
+    /// 周期刷新，让「在附近」「信号」读数保持新鲜（候选列表本身由 `AppSession` 每秒刷新并保持稳定）。
     private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     @State private var refreshToken = 0
 
-    private var candidates: [DiscoveredWatch] {
-        _ = refreshToken
-        return session.auxiliaryCandidates()
-    }
+    private var candidates: [DiscoveredWatch] { session.auxiliaryCandidates }
 
     var body: some View {
         VStack(alignment: .leading, spacing: WLSpacing.sm) {
@@ -56,18 +53,20 @@ struct AuxiliaryDevicesCard: View {
         } else {
             VStack(spacing: WLSpacing.xs) {
                 ForEach(Array(settings.auxiliaryDevices.enumerated()), id: \.element.id) { index, device in
+                    let label = session.label(forAuxiliary: device)
                     HStack(spacing: WLSpacing.md) {
-                        Image(systemName: "iphone")
+                        Image(systemName: label.kind.symbolName)
                             .frame(width: 20)
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: WLSpacing.xxs) {
-                            Text(device.name.isEmpty ? "\(device.displayName) · \(device.id.prefix(8))" : device.displayName)
+                            Text(label.name)
                             Text(status(of: device))
                                 .font(.caption)
                                 .foregroundStyle(session.isAuxiliaryNear(id: device.id) ? WLColor.success : Color.secondary)
                         }
                         Spacer(minLength: WLSpacing.sm)
+                        DeviceEditButton(deviceID: device.id, currentName: label.name)
                         WLButton(String(localized: "移除"), systemImage: "minus.circle") {
                             session.removeAuxiliaryDevice(id: device.id)
                         }
@@ -106,23 +105,20 @@ struct AuxiliaryDevicesCard: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
-                VStack(spacing: WLSpacing.xs) {
-                    ForEach(Array(candidates.enumerated()), id: \.element.id) { index, device in
-                        HStack(spacing: WLSpacing.md) {
-                            VStack(alignment: .leading, spacing: WLSpacing.xxs) {
-                                Text(device.name.isEmpty ? "\(device.displayName) · \(device.id.uuidString.prefix(8))" : device.displayName)
-                                Text("\(device.rssi) dBm")
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: WLSpacing.sm)
-                            WLButton(String(localized: "添加"), systemImage: "plus.circle") {
-                                session.addAuxiliaryDevice(device)
-                            }
-                            .fixedSize(horizontal: true, vertical: false)
-                            .help("把它作为辅助设备；有名称的设备地址轮换后可以自动续接")
+                DeviceGrid {
+                    ForEach(candidates) { device in
+                        DeviceTile(
+                            deviceID: device.id.uuidString,
+                            label: session.label(for: device),
+                            signal: .init(rssi: device.rssi, nearRSSI: settings.nearRSSI, farRSSI: settings.farRSSI),
+                            badge: .add,
+                            help: DeviceTile.help(
+                                String(localized: "点击添加为辅助设备；有名称的设备地址轮换后可以自动续接"),
+                                for: device
+                            )
+                        ) {
+                            session.addAuxiliaryDevice(device)
                         }
-                        if index < candidates.count - 1 { Divider() }
                     }
                 }
             }

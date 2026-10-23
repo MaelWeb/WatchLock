@@ -8,6 +8,8 @@ import Foundation
 ///
 /// 注意：**这里只解析结构，不给类型字节赋予语义名称**。类型值的具体含义（如哪个是 Nearby Info、
 /// 哪个是 Watch 在场广播）需要真机抓包确认后才能固化，见 `docs/anti-false-lock-research.md` §4。
+/// 唯一的例外是 Proximity Pairing（`0x07`，见 `AirPodsModel.swift`）：它来自社区研究、只用于给 AirPods 选图标 / 显示型号，
+/// **不参与**手表识别与锁屏判断，识别不出来时无任何副作用。
 enum AppleAdvertisement {
     /// Bluetooth SIG 分配给 Apple 的公司 ID。
     static let appleCompanyID: UInt16 = 0x004C

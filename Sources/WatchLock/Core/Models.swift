@@ -59,6 +59,8 @@ struct DiscoveredWatch: Identifiable, Hashable {
     var serviceUUIDs: Set<String> = []
     /// 广播中的厂商数据原始内容。
     var manufacturerData: Data?
+    /// 从 Proximity Pairing 广播（或同一设备更早的广播缓存）识别出的 AirPods 型号。
+    var airPodsModel: AirPodsModel?
 
     var displayName: String {
         name.isEmpty ? String(localized: "未命名设备") : name
@@ -83,14 +85,30 @@ struct DiscoveredWatch: Identifiable, Hashable {
 }
 
 extension DiscoveredWatch {
-    /// 合并「强候选」与「信号最强的若干台」，去重后按 RSSI 降序（纯函数，便于测试）。
+    /// 「按信号排序」入选时补上的识别依据（没有任何其他依据的设备）。
+    static let nearMacReason = String(localized: "靠近 Mac（按信号排序）")
+
+    /// 排序用的信号强度：RSSI ≥ 0（含哨兵值 127）表示「未知」，必须当作最弱，
+    /// 否则它们会因为数值大而排到最前面。
+    var rankingRSSI: Int { rssi < 0 ? rssi : Self.unknownRankingRSSI }
+    static let unknownRankingRSSI = -127
+
+    /// 信号强到弱排序；信号相同时按标识排，保证每次结果一致（字典遍历顺序是随机的，
+    /// 不加平局规则的话，同信号的设备每次刷新顺序都会变）。
+    static func isRankedBefore(_ lhs: DiscoveredWatch, _ rhs: DiscoveredWatch) -> Bool {
+        if lhs.rankingRSSI != rhs.rankingRSSI { return lhs.rankingRSSI > rhs.rankingRSSI }
+        return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    /// 合并「强候选」与「信号最强的若干台」，去重后按信号降序（纯函数，便于测试）。
     ///
     /// 存在的意义：Apple 邻近广播绝大多数不带名称，靠名字判断是否手表并不可靠；
     /// 但「离 Mac 最近」这一点在任何广播形态下都成立，因此把信号最强的设备也纳入可选列表。
     static func mergedBindingList(
         strong: [DiscoveredWatch],
         all: [DiscoveredWatch],
-        limit: Int
+        limit: Int,
+        admissionOrder: (DiscoveredWatch, DiscoveredWatch) -> Bool = DiscoveredWatch.isRankedBefore
     ) -> [DiscoveredWatch] {
         var seen = Set<UUID>()
         var result: [DiscoveredWatch] = []
@@ -98,15 +116,15 @@ extension DiscoveredWatch {
         for device in strong where seen.insert(device.id).inserted {
             result.append(device)
         }
-        for device in all.sorted(by: { $0.rssi > $1.rssi }).prefix(limit)
+        for device in all.sorted(by: admissionOrder).prefix(limit)
         where seen.insert(device.id).inserted {
             var copy = device
             if copy.matchReasons.isEmpty {
-                copy.matchReasons = [String(localized: "靠近 Mac（按信号排序）")]
+                copy.matchReasons = [nearMacReason]
             }
             result.append(copy)
         }
-        return result.sorted { $0.rssi > $1.rssi }
+        return result.sorted(by: isRankedBefore)
     }
 }
 

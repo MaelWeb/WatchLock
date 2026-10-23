@@ -213,26 +213,29 @@ struct OnboardingView: View {
                     message: emptyHint
                 )
             } else {
-                VStack(spacing: WLSpacing.xs) {
-                    ForEach(Array(currentDevices.enumerated()), id: \.element.id) { index, device in
-                        DeviceRow(
-                            device: device,
-                            nearRSSI: settings.nearRSSI,
-                            farRSSI: settings.farRSSI,
-                            isBound: settings.boundWatchID == device.id.uuidString,
-                            actionTitle: settings.boundWatchID == device.id.uuidString ? String(localized: "已绑定") : String(localized: "选择"),
-                            actionHelp: String(localized: "绑定后按设备标识追踪，广播地址轮换时会自动续接")
+                DeviceGrid {
+                    ForEach(currentDevices) { device in
+                        let isBound = settings.boundWatchID == device.id.uuidString
+                        let label = session.label(for: device)
+                        DeviceTile(
+                            deviceID: device.id.uuidString,
+                            label: label,
+                            signal: .init(rssi: device.rssi, nearRSSI: settings.nearRSSI, farRSSI: settings.farRSSI),
+                            badge: isBound ? .selected : nil,
+                            help: DeviceTile.help(
+                                isBound
+                                    ? String(localized: "已绑定")
+                                    : String(localized: "点击选择。绑定后按设备标识追踪，广播地址轮换时会自动续接"),
+                                for: device,
+                                extra: showAllDevices ? device.advertisementSummary : nil
+                            ),
+                            confirmation: .bind(
+                                deviceName: label.name,
+                                replacing: session.boundDeviceLabel()?.name
+                            )
                         ) {
                             session.bind(watch: device)
                         }
-                        if showAllDevices, DeveloperMode.isEnabled {
-                            Text(device.advertisementSummary)
-                                .font(.caption2.monospaced())
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                                .truncationMode(.middle)
-                        }
-                        if index < currentDevices.count - 1 { Divider() }
                     }
                 }
             }
@@ -255,7 +258,7 @@ struct OnboardingView: View {
 
     /// 直接在 body 求值中读取最新扫描结果，避免依赖定时器刷新（定时器在 body 重建时会被重置）。
     private var currentDevices: [DiscoveredWatch] {
-        showAllDevices ? session.allDiscoveredDevices() : session.bindingCandidates()
+        showAllDevices ? session.stableAllDevices : session.bindingCandidates
     }
 
     private var emptyHint: String {

@@ -183,7 +183,7 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 - 「最后更新」从副标题挪到「更新」瓦片；副标题只剩设备名。距离是由 RSSI 估算的，瓦片里只显示一位小数，不加「约」（取舍：估算误差不在界面上表达）。
 - 告警按优先级只显示一条（扫描器问题 > 会议 / 演示暂缓锁定 > 未绑定手表），直接放在标题行下。
 - **取舍**：开关的标签缩成 11pt 小字；开关本身仍保留 VoiceOver 标签「启用自动锁定」，小字对辅助功能隐藏。
-- 曾有的 `ProximityGauge` 距离刻度与 `StatusCard` / `CardSection` 已随本方案删除；`ProximityZone` 分区逻辑保留（设置页 `ThresholdBand` 图例使用），`SignalMeter` 仍用于设备列表（`DeviceRow`）。
+- 曾有的 `ProximityGauge` 距离刻度与 `StatusCard` / `CardSection` 已随本方案删除；`ProximityZone` 分区逻辑保留（设置页 `ThresholdBand` 图例使用），`SignalMeter` 仍用于设备列表（`DeviceTile`）。
 - 主操作收敛为 3 个：`立即锁定` / `暂停…` / `设置…`。`暂停…` 为 Menu（15 分钟 / 1 小时 / 4 小时）。
 - 暂停态用**整行状态条**，显示剩余时间 + 「恢复」。
 - 误锁反馈：仅在 `falseLockFeedbackAvailable` 时出现，作为上下文行（不占位时不渲染）。
@@ -406,7 +406,7 @@ HIG《Privacy → Requesting permission》（蓝牙属于「应用要能运行�
 | `MetricRow` | 标签 + 数值行（统一 `monospacedDigit`） | 菜单栏、诊断 |
 | `WLButton`（3 档样式） | 主 / 次 / 危险按钮 | 全局 |
 | `ThresholdBand` | 同轴阈值带 + clamp | 通用页 |
-| `DeviceRow` | 设备行（信号条 + 副标题 + 操作） | 设备页、引导 |
+| `DeviceTile` / `DeviceGrid` | 设备卡片网格（图标 + 名称 + 信号条，点击绑定 / 添加） | 设备页、引导 |
 | `StatChip` | 统计小卡 | 诊断页、引导第 3 步 |
 | `EmptyStateView` | 统一空态 | 设备页、引导、抓包 |
 | `ScannerStatusBar` | 扫描 / 蓝牙状态行 | 设备页、抓包页 |

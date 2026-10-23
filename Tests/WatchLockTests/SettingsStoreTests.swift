@@ -156,4 +156,54 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.lockMethod, .controlCommandQ)
         XCTAssertFalse(store.hasCompletedOnboarding)
     }
+
+    // MARK: - 设备手动覆盖
+
+    func testDeviceOverridePersistsAndClearsWhenEmpty() {
+        let store = SettingsStore(defaults: defaults)
+        store.setDeviceOverride(DeviceOverride(name: "  老王的手机  ", kind: .iPhone), for: "id-1")
+
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.deviceOverrides["id-1"], DeviceOverride(name: "老王的手机", kind: .iPhone))
+
+        reloaded.setDeviceOverride(DeviceOverride(name: " ", kind: nil), for: "id-1")
+        XCTAssertNil(reloaded.deviceOverrides["id-1"], "名称与图标都为空应视为清除")
+        reloaded.setDeviceOverride(DeviceOverride(name: "x", kind: nil), for: "id-2")
+        reloaded.setDeviceOverride(nil, for: "id-2")
+        XCTAssertTrue(reloaded.deviceOverrides.isEmpty)
+    }
+
+    func testMoveDeviceOverrideFollowsAddressRotation() {
+        let store = SettingsStore(defaults: defaults)
+        store.setDeviceOverride(DeviceOverride(name: "旧", kind: nil), for: "old")
+        store.moveDeviceOverride(from: "old", to: "new")
+
+        XCTAssertNil(store.deviceOverrides["old"])
+        XCTAssertEqual(store.deviceOverrides["new"]?.name, "旧")
+    }
+
+    func testMoveDeviceOverrideKeepsExistingOverrideOnTarget() {
+        let store = SettingsStore(defaults: defaults)
+        store.setDeviceOverride(DeviceOverride(name: "旧", kind: nil), for: "old")
+        store.setDeviceOverride(DeviceOverride(name: "新", kind: nil), for: "new")
+        store.moveDeviceOverride(from: "old", to: "new")
+
+        XCTAssertEqual(store.deviceOverrides["new"]?.name, "新")
+        XCTAssertNil(store.deviceOverrides["old"])
+    }
+
+    func testCorruptedOverridesFallBackToEmpty() {
+        defaults.set(Data([0xff]), forKey: "settings.deviceOverrides")
+        XCTAssertTrue(SettingsStore(defaults: defaults).deviceOverrides.isEmpty)
+    }
+
+    func testAuxiliaryDeviceSavedByOlderVersionStillDecodes() throws {
+        // 旧版本没有 airPodsModel 字段。
+        let legacy = Data(#"[{"id":"x","name":"iPhone","advertisement":"type=0x10"}]"#.utf8)
+        defaults.set(legacy, forKey: "settings.auxiliaryDevices")
+
+        let store = SettingsStore(defaults: defaults)
+        XCTAssertEqual(store.auxiliaryDevices.map(\.name), ["iPhone"])
+        XCTAssertNil(store.auxiliaryDevices.first?.airPodsModel)
+    }
 }

@@ -56,6 +56,26 @@ final class AppSession: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     /// 1 秒一次的 housekeeping：暂停到期恢复、候选清理、状态刷新（FR-06 / FR-02 / FR-12）。
     private var housekeepingTimer: Timer?
+    /// 绑定候选列表的稳定器与它的输出（发布出来让设备页随之刷新）。
+    private var bindingTracker = BindingListTracker()
+    @Published private(set) var bindingList: [DiscoveredWatch] = []
+    /// 辅助设备候选：有名称的设备优先入选；最多 8 台，同样钉住。
+    private var auxiliaryTracker = BindingListTracker(config: .init(
+        limit: 8,
+        maxVisible: 16,
+        admissionOrder: { lhs, rhs in
+            if lhs.name.isEmpty != rhs.name.isEmpty { return !lhs.name.isEmpty }
+            return DiscoveredWatch.isRankedBefore(lhs, rhs)
+        }
+    ))
+    @Published private(set) var auxiliaryCandidateList: [DiscoveredWatch] = []
+    /// 「显示全部」列表：不限名额，保留时长与扫描器的 30 分钟清理一致，只负责让顺序稳定。
+    private var allDevicesTracker = BindingListTracker(config: .init(
+        limit: .max,
+        hold: 30 * 60,
+        maxVisible: 60
+    ))
+    @Published private(set) var allDevicesList: [DiscoveredWatch] = []
     private var lastPruneAt: Date = .distantPast
     private let candidateTTL: TimeInterval = 30 * 60
 
@@ -406,6 +426,7 @@ final class AppSession: ObservableObject {
             guard let target = PresenceFusion.rebindTarget(for: device, among: discovered, taken: taken) else { continue }
             fusionEvidence.move(from: device.id, to: target.id.uuidString)
             devices[index].id = target.id.uuidString
+            settings.moveDeviceOverride(from: device.id, to: target.id.uuidString)
             taken.insert(target.id.uuidString)
             changed = true
             DiagnosticsLog.shared.append(.info, String(localized: "辅助设备蓝牙地址已轮换，自动续接（\(device.displayName)）"))
@@ -485,6 +506,25 @@ final class AppSession: ObservableObject {
         return .ok
     }
 
+    /// 把当前位置保存为信任场所。失败原因由调用方展示。
+    @discardableResult
+    func saveCurrentLocationAsTrustedPlace(name: String? = nil, radius: Double) -> TrustedPlace.LocationSaveCheck {
+        trustedPlaces.refreshSnapshot()
+        let fix = trustedPlaces.snapshot.location
+        let check = TrustedPlace.canSaveLocation(fix, radius: radius, existing: settings.trustedPlaces)
+        guard check == .ok, let fix else { return check }
+        let place = TrustedPlace.makeLocationPlace(
+            from: fix,
+            name: name,
+            radius: radius,
+            fallbackName: String(localized: "当前位置")
+        )
+        settings.trustedPlaces.append(place)
+        DiagnosticsLog.shared.append(.info, String(localized: "已保存位置场所「\(place.name)」（半径 \(Int(radius)) 米）"))
+        syncTrustedPlaceNow()
+        return .ok
+    }
+
     func removeTrustedPlace(id: UUID) {
         guard let place = settings.trustedPlaces.first(where: { $0.id == id }) else { return }
         settings.trustedPlaces.removeAll { $0.id == id }
@@ -494,23 +534,27 @@ final class AppSession: ObservableObject {
 
     // MARK: - 辅助设备管理
 
-    /// 附近可选作辅助设备的候选：最近 30 秒内有有效信号、不是已绑定手表、尚未添加，按信号强弱排序。
-    func auxiliaryCandidates(limit: Int = 8, now: Date = Date()) -> [DiscoveredWatch] {
+    /// 附近可选作辅助设备的候选：最近 30 秒内有有效信号、不是已绑定手表、尚未添加。
+    /// 入选后保持稳定（规则见 `BindingListTracker`），由 housekeeping 每秒刷新。
+    var auxiliaryCandidates: [DiscoveredWatch] { auxiliaryCandidateList }
+
+    /// 辅助设备候选池：还没被选中、不是已绑定手表、近期有有效信号。
+    private func auxiliaryPool(now: Date) -> [DiscoveredWatch] {
         let chosen = Set(settings.auxiliaryDevices.map(\.id))
-        return scanner.allDevices.values
-            .filter { device in
-                device.rssi < 0
-                    && now.timeIntervalSince(device.lastSeen) <= 30
-                    && device.id.uuidString != settings.boundWatchID
-                    && !chosen.contains(device.id.uuidString)
-            }
-            .sorted { lhs, rhs in
-                // 有名字的优先：无名广播地址一轮换就无法续接，价值低。
-                if lhs.name.isEmpty != rhs.name.isEmpty { return !lhs.name.isEmpty }
-                return lhs.rssi > rhs.rssi
-            }
-            .prefix(limit)
-            .map { $0 }
+        return scanner.allDevices.values.filter { device in
+            device.rssi < 0
+                && now.timeIntervalSince(device.lastSeen) <= 30
+                && device.id.uuidString != settings.boundWatchID
+                && !chosen.contains(device.id.uuidString)
+        }
+    }
+
+    private func refreshAuxiliaryCandidates(now: Date) {
+        auxiliaryTracker.update(strong: [], all: auxiliaryPool(now: now), now: now)
+        // 有名字的优先：无名广播地址一轮换就无法续接，价值低。
+        // 对已稳定的顺序做稳定分区，不引入新的跳动。
+        let ordered = auxiliaryTracker.visible
+        auxiliaryCandidateList = ordered.filter { !$0.name.isEmpty } + ordered.filter { $0.name.isEmpty }
     }
 
     func addAuxiliaryDevice(_ device: DiscoveredWatch) {
@@ -520,7 +564,8 @@ final class AppSession: ObservableObject {
         let entry = AuxiliaryDevice(
             id: device.id.uuidString,
             name: device.name,
-            advertisement: AppleAdvertisement.parse(device.manufacturerData)?.fingerprint
+            advertisement: AppleAdvertisement.parse(device.manufacturerData)?.fingerprint,
+            airPodsModel: device.airPodsModel
         )
         settings.auxiliaryDevices.append(entry)
         scanner.auxiliaryIdentifiers = auxiliaryIdentifierSet()
@@ -584,6 +629,8 @@ final class AppSession: ObservableObject {
         let housekeepingNow = Date()
         driveTrustedPlace(now: housekeepingNow)
         rebindAuxiliaryDevices(now: housekeepingNow)
+        upgradeBoundNameSnapshot()
+        refreshBindingList()
         driveFusion()
         driveLockGate()
 
@@ -620,8 +667,13 @@ final class AppSession: ObservableObject {
 
     func bind(watch: DiscoveredWatch) {
         settings.boundWatchID = watch.id.uuidString
-        // 无名广播很常见，用 ID 前 8 位当可读名字。
-        settings.boundWatchName = watch.name.isEmpty ? String(watch.id.uuidString.prefix(8)) : watch.name
+        // 绑定那一刻的名称快照：之后广播里的名称时有时无，界面一律优先用它（见 `DeviceNaming.resolve`）。
+        // 无名广播很常见，没有名称时用 AirPods 型号，再不行用 ID 前 8 位当可读名字。
+        settings.boundWatchName = DeviceNaming.snapshotName(
+            name: watch.name,
+            model: watch.airPodsModel,
+            id: watch.id.uuidString
+        )
         // 记录广播类型指纹：地址轮换后用它校验「还是同一类广播」，比只比对名称更可靠。
         settings.boundWatchAdvertisement = AppleAdvertisement.parse(watch.manufacturerData)?.fingerprint
         scanner.boundIdentifier = watch.id
@@ -759,20 +811,94 @@ final class AppSession: ObservableObject {
 
     /// 所有被发现的 BLE 设备（含未匹配），供绑定页调试「搜不到手表」。
     func allDiscoveredDevices() -> [DiscoveredWatch] {
-        scanner.allDevices.values.sorted { $0.rssi > $1.rssi }
+        scanner.allDevices.values.sorted(by: DiscoveredWatch.isRankedBefore)
     }
 
-    /// 绑定列表数据源：强候选 + 当前信号最强的若干台，按 RSSI 排序。
+    /// 绑定列表数据源：强候选 + 信号最强的若干台，入选后保持稳定（规则见 `BindingListTracker`）。
     ///
     /// Apple 的邻近广播基本都是无名广播，名称匹配（是否含 watch）并不可靠，
     /// 因此这里不强依赖识别规则：把手表贴近 Mac 时它必然是信号最强的设备之一，
     /// 由用户从「离你最近」的几台里点选，绑定后按 identifier 精确追踪。
-    func bindingCandidates(limit: Int = 8) -> [DiscoveredWatch] {
-        DiscoveredWatch.mergedBindingList(
+    ///
+    /// 列表由 housekeeping 每秒刷新一次，而不是每次界面重绘都重新计算：
+    /// 否则列表内容取决于重绘时机，行会随信号抖动来回跳。
+    var bindingCandidates: [DiscoveredWatch] { bindingList }
+
+    private func refreshBindingList() {
+        bindingTracker.update(
             strong: visibleCandidates(),
             all: allDiscoveredDevices(),
-            limit: limit
+            now: Date()
         )
+        bindingList = bindingTracker.visible
+
+        let now = Date()
+        refreshAuxiliaryCandidates(now: now)
+        allDevicesTracker.update(strong: [], all: allDiscoveredDevices(), now: now)
+        allDevicesList = allDevicesTracker.visible
+    }
+
+    /// 「显示全部」用的稳定列表（引导页）。诊断页要看原始快照，仍用 `allDiscoveredDevices()`。
+    var stableAllDevices: [DiscoveredWatch] { allDevicesList }
+
+    // MARK: - 设备名称 / 图标（规则见 `DeviceNaming`）
+
+    /// 设备在界面上的名称与图标：已绑定 / 已选为辅助的设备优先用快照名，再叠加用户的手动覆盖。
+    func label(for device: DiscoveredWatch) -> DeviceLabel {
+        let id = device.id.uuidString
+        let isBound = id == settings.boundWatchID
+        let auxiliary = settings.auxiliaryDevices.first { $0.id == id }
+        return DeviceNaming.resolve(
+            id: id,
+            liveName: device.name,
+            model: device.airPodsModel,
+            snapshotName: isBound ? settings.boundWatchName : auxiliary?.name,
+            snapshotModel: auxiliary?.airPodsModel,
+            override: settings.deviceOverrides[id],
+            fallbackKind: isBound ? .watch : .unknown
+        )
+    }
+
+    /// 已选辅助设备的名称与图标：实时广播暂时拿不到名称时，用添加时的快照。
+    func label(forAuxiliary device: AuxiliaryDevice) -> DeviceLabel {
+        let live = UUID(uuidString: device.id).flatMap { scanner.allDevices[$0] }
+        return DeviceNaming.resolve(
+            id: device.id,
+            liveName: live?.name ?? "",
+            model: live?.airPodsModel,
+            snapshotName: device.name,
+            snapshotModel: device.airPodsModel,
+            override: settings.deviceOverrides[device.id]
+        )
+    }
+
+    /// 已绑定设备的名称与图标；未绑定时为 nil。
+    func boundDeviceLabel() -> DeviceLabel? {
+        guard let id = settings.boundWatchID else { return nil }
+        let live = UUID(uuidString: id).flatMap { scanner.allDevices[$0] }
+        return DeviceNaming.resolve(
+            id: id,
+            liveName: live?.name ?? "",
+            model: live?.airPodsModel,
+            snapshotName: settings.boundWatchName,
+            override: settings.deviceOverrides[id],
+            fallbackKind: .watch
+        )
+    }
+
+    func setDeviceOverride(_ override: DeviceOverride?, for id: String) {
+        settings.setDeviceOverride(override, for: id)
+    }
+
+    /// 绑定时设备没有名称（快照是占位名），之后一旦广播里出现真实名称就补上。
+    /// 只升级占位名，不改动已有的真实快照，否则「快照优先」就失去意义。
+    private func upgradeBoundNameSnapshot() {
+        guard let id = settings.boundWatchID,
+              let uuid = UUID(uuidString: id),
+              let live = scanner.allDevices[uuid], !live.name.isEmpty else { return }
+        let current = settings.boundWatchName
+        guard current == nil || current.map({ DeviceNaming.isPlaceholder($0, id: id) }) == true else { return }
+        settings.boundWatchName = live.name
     }
 
     // MARK: - 内部处理
@@ -827,6 +953,7 @@ final class AppSession: ObservableObject {
                   candidateManufacturerData: device.manufacturerData
               ) else { return false }
 
+        settings.moveDeviceOverride(from: bound, to: identifier.uuidString)
         settings.boundWatchID = identifier.uuidString
         settings.boundWatchName = device.name
         settings.boundWatchAdvertisement = AppleAdvertisement.parse(device.manufacturerData)?.fingerprint

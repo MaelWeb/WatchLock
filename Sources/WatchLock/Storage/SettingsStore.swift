@@ -37,6 +37,7 @@ final class SettingsStore: ObservableObject {
         static let trustedPlaces = "settings.trustedPlaces"
         static let fusionEnabled = "settings.fusionEnabled"
         static let auxiliaryDevices = "settings.auxiliaryDevices"
+        static let deviceOverrides = "settings.deviceOverrides"
         static let hasCompletedOnboarding = "settings.hasCompletedOnboarding"
         static let autoLockCount = "stats.autoLockCount"
         static let falseLockCount = "stats.falseLockCount"
@@ -109,6 +110,7 @@ final class SettingsStore: ObservableObject {
         trustedPlaces = Self.decode(defaults.data(forKey: Key.trustedPlaces))
         fusionEnabled = defaults.object(forKey: Key.fusionEnabled) as? Bool ?? true
         auxiliaryDevices = Self.decode(defaults.data(forKey: Key.auxiliaryDevices))
+        deviceOverrides = Self.decodeDictionary(defaults.data(forKey: Key.deviceOverrides))
         autoLockCount = defaults.object(forKey: Key.autoLockCount) as? Int ?? 0
         falseLockCount = defaults.object(forKey: Key.falseLockCount) as? Int ?? 0
     }
@@ -182,6 +184,11 @@ final class SettingsStore: ObservableObject {
         return value
     }
 
+    private static func decodeDictionary<T: Decodable>(_ data: Data?) -> [String: T] {
+        guard let data, let value = try? JSONDecoder().decode([String: T].self, from: data) else { return [:] }
+        return value
+    }
+
     /// 在用户保存的信任场所内暂停自动锁定。没有保存任何场所时不产生效果。
     @Published var trustedPlaceEnabled: Bool {
         didSet { defaults.set(trustedPlaceEnabled, forKey: Key.trustedPlaceEnabled) }
@@ -196,6 +203,29 @@ final class SettingsStore: ObservableObject {
     }
     @Published var auxiliaryDevices: [AuxiliaryDevice] {
         didSet { defaults.set(try? JSONEncoder().encode(auxiliaryDevices), forKey: Key.auxiliaryDevices) }
+    }
+
+    /// 用户手动设置的设备名称 / 图标，键是外设标识（`UUID.uuidString`）。
+    ///
+    /// 只会在用户主动编辑时写入，所以不需要上限；蓝牙地址轮换时由 `moveDeviceOverride` 迁移。
+    @Published var deviceOverrides: [String: DeviceOverride] {
+        didSet { defaults.set(try? JSONEncoder().encode(deviceOverrides), forKey: Key.deviceOverrides) }
+    }
+
+    /// 写入（或清除）某台设备的手动覆盖；清洗后名称与图标都为空时直接删除该条目。
+    func setDeviceOverride(_ override: DeviceOverride?, for id: String) {
+        guard let cleaned = override?.normalized(), !cleaned.isEmpty else {
+            deviceOverrides.removeValue(forKey: id)
+            return
+        }
+        deviceOverrides[id] = cleaned
+    }
+
+    /// 蓝牙地址轮换后，把手动覆盖迁移到新标识；新标识上已有覆盖时保留新的，不被旧值冲掉。
+    func moveDeviceOverride(from oldID: String, to newID: String) {
+        guard oldID != newID, let existing = deviceOverrides[oldID] else { return }
+        if deviceOverrides[newID] == nil { deviceOverrides[newID] = existing }
+        deviceOverrides.removeValue(forKey: oldID)
     }
 
     var fusionConfig: PresenceFusion.Config {

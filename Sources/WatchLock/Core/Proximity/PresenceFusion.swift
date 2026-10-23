@@ -11,6 +11,9 @@ struct AuxiliaryDevice: Codable, Equatable, Identifiable {
     var name: String
     /// 绑定时记录的广播类型指纹（`AppleAdvertisement.Payload.fingerprint`）。
     var advertisement: String?
+    /// 添加时记录的 AirPods 型号快照：耳机入耳后不再发 Proximity Pairing 广播，型号只能趁早存下来。
+    /// 可选字段，旧版本保存的数据解码时为 nil。
+    var airPodsModel: AirPodsModel?
 
     var displayName: String {
         name.isEmpty ? String(localized: "未命名设备") : name

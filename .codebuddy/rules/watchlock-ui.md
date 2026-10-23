@@ -33,7 +33,7 @@ alwaysApply: false
 | `WLButton` | `.primary` / `.secondary` / `.danger` 三档样式。**默认横向撑满容器**：放在 `HStack` 里与 `Spacer` 并排时要加 `.fixedSize(horizontal: true, vertical: false)`，否则会变成一条长按钮；`width:` 是**最小宽度**（文案更长会自然撑开），不要再用固定宽度去对齐 |
 | `WLButtonLabel` | 按钮标签外观；`Menu` 等不能直接用 `WLButton` 的控件用它保持同尺寸 |
 | `ThresholdBand` | 在身边 / 已离开 同轴阈值带（带 clamp） |
-| `DeviceRow` | 设备行（信号条 + 副标题 + 操作） |
+| `DeviceTile` / `DeviceGrid` | 设备卡片（图标在上、名称在下、信号条，点击即绑定 / 添加；参考隔空投送）与自适应网格；名称 / 图标覆盖走 `DeviceNaming` |
 | `StatChip` | 统计小卡 |
 | `EmptyStateView` | 统一空态（基于 `ContentUnavailableView`） |
 | `ScannerStatusBar` | 扫描 / 蓝牙 / 广播数状态行 |

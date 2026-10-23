@@ -14,7 +14,7 @@ enum WatchMatcher {
     ]
 
     /// Apple Watch 广播名里的空格常是 U+00A0（不间断空格），必须归一化后再匹配。
-    private static func normalized(_ text: String) -> String {
+    static func normalized(_ text: String) -> String {
         text.lowercased().map { character in
             switch character {
             case "\u{00A0}", "\u{202F}", "\u{2007}", "\u{2009}": return " "

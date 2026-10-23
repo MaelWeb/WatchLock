@@ -20,6 +20,20 @@ enum WLRadius {
     static let lg: CGFloat = 14
 }
 
+/// 尺寸 token：设备卡片（隔空投送式网格）用到的固定尺寸。
+enum WLSize {
+    /// 设备卡片最小宽度；网格按它自适应列数。
+    static let deviceTileMinWidth: CGFloat = 92
+    /// 设备图标底盘直径。
+    static let deviceIconPlate: CGFloat = 52
+    /// 底盘里的图标字号。
+    static let deviceIconGlyph: CGFloat = 24
+    /// 角标（已绑定 / 添加 / 编辑）字号。
+    static let deviceBadgeGlyph: CGFloat = 16
+    /// 设备名称预留的行数：固定两行高度，让同一行里的卡片对齐。
+    static let deviceNameLines = 2
+}
+
 /// 字体 token：对应设计稿的三档层级（见 `docs/ui-design.md` §3）。
 ///
 /// 注意 macOS 的文本样式字号与 iOS 不同：`.headline` 是 13、`.caption` 是 10，

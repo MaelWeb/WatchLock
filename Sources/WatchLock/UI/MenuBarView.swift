@@ -103,7 +103,7 @@ struct MenuBarView: View {
 
     /// 副标题：设备名。「最后更新」已有自己的瓦片。
     private var subtitle: String {
-        settings.boundWatchName ?? String(localized: "尚未绑定手表")
+        session.boundDeviceLabel()?.name ?? String(localized: "尚未绑定手表")
     }
 
     private var statusTint: Color {

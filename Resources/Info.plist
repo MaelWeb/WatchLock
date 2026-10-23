@@ -38,7 +38,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>WatchLock 需要通过蓝牙测量 Apple Watch 与这台 Mac 的距离。</string>
 	<key>NSLocationUsageDescription</key>
-	<string>仅用于让 macOS 允许 WatchLock 读取当前 Wi-Fi 名称，以便在你保存的「信任场所」里显示网络名。不会读取或上传你的位置。</string>
+	<string>用于让 macOS 允许 WatchLock 读取当前 Wi-Fi 名称，并在你保存「按位置的信任场所」后，判断你是否在该位置附近。位置只在本机比对，不会上传。</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>用于在自动锁定或权限缺失时提醒你。</string>
 </dict>

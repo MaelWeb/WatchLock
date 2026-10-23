@@ -36,6 +36,9 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
     var auxiliaryIdentifiers: Set<UUID> = []
     var onAuxiliaryRSSI: ((UUID, Int, Date) -> Void)?
 
+    /// 名称 / 型号缓存：广播里的 Local Name 时有时无，用同一 identifier 的历史值补上。
+    private var identityCache = DeviceIdentityCache()
+
     private var central: CBCentralManager!
     private var shouldScan = false
     private var mode: ScanMode = .continuous
@@ -167,10 +170,22 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         // 此时不能把整个扫描结果丢掉：设备与广播内容照常记录（抓包/诊断用），
         // 只是不喂给距离状态机（会被当成极近信号），也不进候选列表。
 
-        let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
-            ?? peripheral.name
+        let now = Date()
+        // 空字符串的名称等同于没有名称：否则它会覆盖掉之前已知的真实名称。
+        let advertisedName = [advertisementData[CBAdvertisementDataLocalNameKey] as? String, peripheral.name]
+            .compactMap { $0 }
+            .first { !$0.isEmpty }
         let serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
         let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
+
+        identityCache.record(
+            id: peripheral.identifier,
+            name: advertisedName,
+            model: AppleAdvertisement.airPodsModel(from: manufacturerData),
+            now: now
+        )
+        let name = advertisedName ?? identityCache.name(for: peripheral.identifier, now: now)
+        let airPodsModel = identityCache.model(for: peripheral.identifier, now: now)
 
         let matched = WatchMatcher.evaluate(
             name: name,
@@ -180,7 +195,6 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
             peripheralIdentifier: peripheral.identifier
         )
 
-        let now = Date()
         var raw = allDevices[peripheral.identifier] ?? DiscoveredWatch(
             id: peripheral.identifier,
             name: name ?? "",
@@ -194,6 +208,7 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         raw.matchReasons = matched.reasons
         raw.serviceUUIDs = Set(serviceUUIDs.map(\.uuidString))
         raw.manufacturerData = manufacturerData
+        raw.airPodsModel = airPodsModel
         allDevices[peripheral.identifier] = raw
 
         if rssi < 0, auxiliaryIdentifiers.contains(peripheral.identifier) {
@@ -219,6 +234,7 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         device.rssi = RSSI.intValue
         device.lastSeen = now
         device.matchReasons = matched.reasons
+        device.airPodsModel = airPodsModel
         candidates[peripheral.identifier] = device
 
         onRSSI?(peripheral.identifier, RSSI.intValue, now)
@@ -229,5 +245,6 @@ final class WatchScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
         let deadline = Date().addingTimeInterval(-interval)
         allDevices = allDevices.filter { $0.value.lastSeen >= deadline }
         candidates = candidates.filter { $0.value.lastSeen >= deadline }
+        identityCache.prune(now: Date())
     }
 }

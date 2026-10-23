@@ -7,7 +7,7 @@ struct DevicePage: View {
 
     @State private var confirmingUnbind = false
 
-    private var candidates: [DiscoveredWatch] { session.bindingCandidates() }
+    private var candidates: [DiscoveredWatch] { session.bindingCandidates }
 
     var body: some View {
         SettingsDetail {
@@ -45,7 +45,7 @@ struct DevicePage: View {
                     .fixedSize(horizontal: true, vertical: false)
                     .help("重启蓝牙扫描，用于列表长时间为空时")
             }
-            Text("按信号强度实时排序，最靠前的那台通常就是你的手表。")
+            Text("点击设备即可绑定。靠近 Mac 的排在前面，最靠前的那台通常就是你的手表。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -58,8 +58,9 @@ struct DevicePage: View {
     // MARK: - 已绑定
 
     private var boundCard: some View {
-        HStack(spacing: WLSpacing.md) {
-            Image(systemName: "applewatch")
+        let boundLabel = session.boundDeviceLabel()
+        return HStack(spacing: WLSpacing.md) {
+            Image(systemName: boundLabel?.kind.symbolName ?? DeviceKind.watch.symbolName)
                 .font(.system(size: 20))
                 .foregroundStyle(settings.boundWatchID == nil ? Color.secondary : WLColor.success)
                 .accessibilityHidden(true)
@@ -68,10 +69,11 @@ struct DevicePage: View {
                 Text(settings.boundWatchID == nil ? String(localized: "未绑定") : String(localized: "已绑定"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(boundTitle)
+                Text(boundLabel?.name ?? String(localized: "在下方列表中选择你的手表"))
             }
             Spacer(minLength: WLSpacing.sm)
-            if settings.boundWatchID != nil {
+            if let boundID = settings.boundWatchID {
+                DeviceEditButton(deviceID: boundID, currentName: boundLabel?.name ?? "")
                 WLButton(String(localized: "解除绑定"), systemImage: "trash", role: .danger) {
                     confirmingUnbind = true
                 }
@@ -81,17 +83,12 @@ struct DevicePage: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .wlCard()
-        .confirmationDialog("解除与「\(settings.boundWatchName ?? String(localized: "该设备"))」的绑定？", isPresented: $confirmingUnbind) {
+        .confirmationDialog("解除与「\(boundLabel?.name ?? String(localized: "该设备"))」的绑定？", isPresented: $confirmingUnbind) {
             Button("解除绑定", role: .destructive) { session.unbindWatch() }
             Button("取消", role: .cancel) {}
         } message: {
             Text("解除后自动锁定会停止，需要重新绑定。")
         }
-    }
-
-    private var boundTitle: String {
-        guard settings.boundWatchID != nil else { return String(localized: "在下方列表中选择你的手表") }
-        return settings.boundWatchName ?? String(localized: "未命名设备")
     }
 
     // MARK: - 候选列表
@@ -105,19 +102,28 @@ struct DevicePage: View {
                 message: emptyHint
             )
         } else {
-            VStack(spacing: WLSpacing.xs) {
-                ForEach(Array(candidates.enumerated()), id: \.element.id) { index, device in
-                    DeviceRow(
-                        device: device,
-                        nearRSSI: settings.nearRSSI,
-                        farRSSI: settings.farRSSI,
-                        isBound: settings.boundWatchID == device.id.uuidString,
-                        actionTitle: settings.boundWatchID == device.id.uuidString ? String(localized: "已绑定") : String(localized: "绑定"),
-                        actionHelp: String(localized: "绑定后按设备标识追踪，广播地址轮换时会自动续接")
+            DeviceGrid {
+                ForEach(candidates) { device in
+                    let isBound = settings.boundWatchID == device.id.uuidString
+                    let label = session.label(for: device)
+                    DeviceTile(
+                        deviceID: device.id.uuidString,
+                        label: label,
+                        signal: .init(rssi: device.rssi, nearRSSI: settings.nearRSSI, farRSSI: settings.farRSSI),
+                        badge: isBound ? .selected : nil,
+                        help: DeviceTile.help(
+                            isBound
+                                ? String(localized: "已绑定")
+                                : String(localized: "点击绑定。绑定后按设备标识追踪，广播地址轮换时会自动续接"),
+                            for: device
+                        ),
+                        confirmation: .bind(
+                            deviceName: label.name,
+                            replacing: session.boundDeviceLabel()?.name
+                        )
                     ) {
                         session.bind(watch: device)
                     }
-                    if index < candidates.count - 1 { Divider() }
                 }
             }
         }
