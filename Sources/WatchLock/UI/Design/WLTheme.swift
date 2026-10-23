@@ -25,11 +25,11 @@ enum WLSize {
     /// 设备卡片最小宽度；网格按它自适应列数。
     static let deviceTileMinWidth: CGFloat = 92
     /// 设备图标底盘直径。
-    static let deviceIconPlate: CGFloat = 52
+    static let deviceIconPlate: CGFloat = 40
     /// 底盘里的图标字号。
-    static let deviceIconGlyph: CGFloat = 24
+    static let deviceIconGlyph: CGFloat = 20
     /// 角标（已绑定 / 添加 / 编辑）字号。
-    static let deviceBadgeGlyph: CGFloat = 16
+    static let deviceBadgeGlyph: CGFloat = 14
     /// 设备名称预留的行数：固定两行高度，让同一行里的卡片对齐。
     static let deviceNameLines = 2
 }

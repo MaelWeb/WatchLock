@@ -24,6 +24,8 @@ html { background: #eaeef4; }
 body {
     margin: 0;
     padding: 22px;
+    /* 画布比内容高时背景也铺满，不留下一条 html 底色 */
+    min-height: 100vh;
     background: linear-gradient(160deg, #eef2f8 0%, #dde5f0 100%);
     font: 13px/1.45 -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
     color: var(--text);
@@ -31,6 +33,7 @@ body {
     display: flex;
     gap: 18px;
     align-items: flex-start;
+    align-content: flex-start;
     flex-wrap: wrap;
 }
 
@@ -225,7 +228,8 @@ body {
 
 /* 单选卡 */
 .radio { display: flex; gap: 8px; padding: 8px; border-radius: 6px; background: var(--fill); align-items: flex-start; }
-.radio.on { border: 1.5px solid var(--blue); background: rgba(0, 122, 255, 0.06); }
+/* 选中态只加强调色描边，底色不变（对应 RadioCard：.quaternary + strokeBorder） */
+.radio.on { border: 1.5px solid var(--blue); }
 .radio .cir { width: 14px; height: 14px; border-radius: 50%; border: 1.4px solid var(--tertiary); margin-top: 1px; flex: none; }
 .radio.on .cir { border-color: var(--blue); background: radial-gradient(circle, #fff 0 2.5px, var(--blue) 3px); }
 
@@ -281,3 +285,71 @@ body {
 .ob-body .eyebrow { text-align: center; font-size: 11px; color: var(--secondary); margin-bottom: 4px; }
 .ob-body .lead { text-align: center; font-size: 13px; margin-top: 4px; line-height: 1.5; }
 .ob-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--sep); }
+
+/* ---------- 卡片页（SettingsDetail + wlCard）补充 ---------- */
+/* CardSectionHeader：图标 + 13 semibold 标题 */
+.ch { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.ch .ic { color: var(--text); }
+/* 卡片内一行一个条目（已选辅助设备 / 已保存场所）：条目之间是发丝线，不再套带边框的列表 */
+.arow { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+.arow + .arow { border-top: 1px solid var(--sep); }
+.arow .t { font-size: 13px; }
+.arow .s { font-size: 11px; color: var(--secondary); }
+/* 无边框图标按钮（DeviceEditButton：.borderless 的铅笔） */
+.ibtn { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; color: #4a4a4f; }
+.ibtn .ic { width: 13px; height: 13px; }
+
+/* Form 之外的 Toggle 默认是复选框（不是开关）：框在左，标题在右 */
+.cb { display: inline-flex; align-items: center; gap: 6px; }
+.cb i { width: 14px; height: 14px; border-radius: 3.5px; display: flex; align-items: center; justify-content: center; flex: none;
+        background: linear-gradient(#4ea3ff, #007aff); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.18); }
+.cb i svg { width: 10px; height: 10px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.cb.off i { background: #fff; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); }
+.cb.off i svg { display: none; }
+
+/* 分段控件（Picker .segmented） */
+.seg { display: flex; flex: 1; padding: 2px; border-radius: 7px; background: rgba(120, 120, 128, 0.14); }
+.seg span { flex: 1; text-align: center; padding: 2px 0; font-size: 12px; border-radius: 5px; }
+.seg span.on { background: #fff; box-shadow: 0 0.5px 2px rgba(0, 0, 0, 0.25); }
+
+/* ---------- 设备卡片网格（DeviceTile / DeviceGrid，参考隔空投送） ---------- */
+/* 与 LazyVGrid(.adaptive(minimum: 92), spacing: 8) 一致：尽量多列，每列等宽拉伸，行内顶对齐 */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; align-items: start; }
+/* 卡片内边距上下 4、左右 4；底盘 40；信号条挪到左上角，不再单占一行 */
+.dtile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; border-radius: 10px; }
+.dtile .plate { position: relative; width: 40px; height: 40px; border-radius: 50%; background: rgba(0, 0, 0, 0.08);
+                display: flex; align-items: center; justify-content: center; color: var(--text); }
+.dtile .plate .ic { width: 20px; height: 20px; stroke-width: 1.3; }
+/* 角标：贴在底盘外接方形的右下角 */
+.dtile .bd { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--green);
+             display: flex; align-items: center; justify-content: center; }
+.dtile .bd.add { background: var(--blue); }
+.dtile .bd svg { width: 9px; height: 9px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dtile.sel .plate { background: rgba(52, 199, 89, 0.18); box-shadow: inset 0 0 0 2px var(--green); color: var(--green); }
+/* 名称固定两行高度，让同一行里的卡片对齐 */
+.dtile .nm { width: 100%; min-height: 2.6em; font-size: 11px; line-height: 1.3; text-align: center; overflow-wrap: break-word; }
+/* 小号信号条（SignalMeter compact）：柱宽 2.5、高 2.5→9.1、间距 2，总高约 9 */
+.dtile > .meter { position: absolute; top: 4px; left: 4px; height: 9.1px; }
+.dtile > .meter span { width: 2.5px; border-radius: 1px; }
+.dtile > .meter span:nth-child(1) { height: 2.5px; }
+.dtile > .meter span:nth-child(2) { height: 4.7px; }
+.dtile > .meter span:nth-child(3) { height: 6.9px; }
+.dtile > .meter span:nth-child(4) { height: 9.1px; }
+/* 悬停态：浅底 + 右上角铅笔（平时不显示，键盘 / VoiceOver 走右键菜单与自定义操作） */
+.dtile.hov { background: rgba(0, 0, 0, 0.08); }
+.dtile.hov .pen { position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0, 0, 0, 0.08); color: var(--secondary);
+                  display: flex; align-items: center; justify-content: center; }
+.dtile.hov .pen svg { width: 8px; height: 8px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- 诊断页：锁定记录行与日志区 ---------- */
+.hrow { display: flex; align-items: baseline; gap: 8px; font-size: 11px; }
+.hrow .m { flex: 1; min-width: 0; }
+.hrow .k { color: var(--secondary); white-space: nowrap; }
+.hrow .r { min-width: 56px; text-align: right; color: var(--secondary); white-space: nowrap; }
+/* 日志区：.wlCard(tint: .plain) 的白底小卡，等宽正文 */
+.logbox { background: #fff; border-radius: 8px; padding: 8px; }
+.logbox .lt { font-size: 10px; color: var(--secondary); }
+.logbox .lm { font-size: 11px; font-family: "SF Mono", Menlo, monospace; }
+
+/* 长说明文字按窗口宽度折行，不撑宽整列 */
+.col:has(.w560) .caption { max-width: 560px; }

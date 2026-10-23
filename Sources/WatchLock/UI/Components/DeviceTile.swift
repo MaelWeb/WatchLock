@@ -94,21 +94,25 @@ struct DeviceTile: View {
 
     // MARK: - 内容
 
+    /// 信号条挪到卡片左上角（与悬停时右上角的铅笔对称），不再单占一行，卡片因此矮约三分之一。
     private var content: some View {
-        VStack(spacing: WLSpacing.sm) {
+        VStack(spacing: WLSpacing.xs) {
             iconPlate
             Text(label.name)
                 .font(WLFont.caption)
                 .multilineTextAlignment(.center)
                 .lineLimit(WLSize.deviceNameLines, reservesSpace: true)
                 .frame(maxWidth: .infinity)
-            if let signal {
-                SignalMeter(rssi: Double(signal.rssi), nearRSSI: signal.nearRSSI, farRSSI: signal.farRSSI)
-            }
         }
-        .padding(.vertical, WLSpacing.sm)
+        .padding(.vertical, WLSpacing.xs)
         .padding(.horizontal, WLSpacing.xs)
         .frame(maxWidth: .infinity)
+        .overlay(alignment: .topLeading) {
+            if let signal {
+                SignalMeter(rssi: Double(signal.rssi), nearRSSI: signal.nearRSSI, farRSSI: signal.farRSSI, compact: true)
+                    .padding(WLSpacing.xs)
+            }
+        }
         .background(
             RoundedRectangle(cornerRadius: WLRadius.md, style: .continuous)
                 .fill(isHovering ? Color.primary.opacity(0.08) : Color.clear)

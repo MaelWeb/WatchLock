@@ -126,18 +126,18 @@ RSSI ≤ farRSSI             → 1 格  wlWarning
 
 ## 5. 界面设计稿
 
-**可视化设计稿（推荐从这里看）**：`docs/ui-design/` 下 9 张 PNG，按 macOS 原生观感绘制；对应 HTML 源文件在同目录，改 `mockups.css` 后用 Chrome 无头模式重渲染即可更新：
+**可视化设计稿（推荐从这里看）**：`docs/ui-design/` 下 9 张 PNG（`08` 为菜单栏图标规范），按 macOS 原生观感绘制；对应 HTML 源文件在同目录，改 `mockups.css` 后用 Chrome 无头模式重渲染即可更新：
 
 | 图片 | 内容 |
 | --- | --- |
-| `01-menubar.png` | 菜单栏面板三态（常态 / 暂停中 / 异常与误锁反馈） |
-| `02-settings-general.png` | 设置 · 通用（同轴阈值带） |
-| `03-settings-device.png` | 设置 · 设备（绑定卡 + 候选列表 + 辅助设备卡 + 扫描状态） |
-| `04-settings-calibration.png` | 设置 · 校准（单选卡 + 采样进度） |
-| `05-settings-diagnostics.png` | 设置 · 诊断（调参 / 日志 / 抓包 / 调试） |
+| `01-menubar.png` | 菜单栏面板四态（常态 / 暂停中 / 信任场所内暂停 / 异常与误锁反馈） |
+| `02-settings-general.png` | 设置 · 通用（同轴阈值带；说明文字都在卡内） |
+| `03-settings-device.png` | 设置 · 设备（绑定卡 + 隔空投送式设备网格 + 辅助设备卡 + 扫描状态） |
+| `04-settings-calibration.png` | 设置 · 校准（单选卡 + 采样进度；空闲 / 采样中两态） |
+| `05-settings-diagnostics.png` | 设置 · 诊断（调参 / 锁定记录 / 日志；抓包与调试仅开发者模式） |
 | `06-onboarding.png` | 设置向导（按 HIG 调研重设计，见 §5.7.1） |
-| `07-settings-unlock.png` | 设置 · 解锁（托管密码风险提示） |
-| `09-settings-places.png` | 设置 · 场所（信任场所开关 / 当前网络 / 已保存场所 / Wi-Fi 名称授权） |
+| `07-settings-unlock.png` | 设置 · 解锁（默认态 / 托管密码态，风险提示） |
+| `09-settings-places.png` | 设置 · 场所（总开关 / 当前网络 / 当前位置 / 已保存场所 / 定位服务） |
 
 > **约定**：设计稿只保留每个界面**最新的一份**。改了某块内容就改对应的 HTML 再重新渲染，
 > **直接覆盖同名 PNG**，不要新增 `-v2` / 日期后缀的版本文件（避免多版本并存造成歧义）。

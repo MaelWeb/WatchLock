@@ -11,9 +11,13 @@
 <symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
 <symbol id="warn" viewBox="0 0 16 16"><path d="M8 2.6 14.4 13.4H1.6z"/><path d="M8 6.4v3.2M8 11.2v.5"/></symbol>
 <symbol id="pin" viewBox="0 0 16 16"><path d="M8 14.2s4.4-3.9 4.4-7.4a4.4 4.4 0 0 0-8.8 0c0 3.5 4.4 7.4 4.4 7.4z"/><circle cx="8" cy="6.8" r="1.5"/></symbol>
-<symbol id="phone" viewBox="0 0 16 16"><rect x="4.6" y="1.8" width="6.8" height="12.4" rx="1.8"/><path d="M7 12.4h2"/></symbol>
+<symbol id="extarrow" viewBox="0 0 16 16"><path d="M6.2 3.2H4.4A2 2 0 0 0 2.4 5.2v6.4a2 2 0 0 0 2 2h6.4a2 2 0 0 0 2-2V9.8M9 2.6h4.4V7M13.4 2.6 7.6 8.4"/></symbol>
+<symbol id="key" viewBox="0 0 16 16"><circle cx="5.4" cy="10.6" r="2.6"/><path d="M7.3 8.7 13.4 2.6M11 5l2 2M9.4 6.6l1.4 1.4"/></symbol>
+<symbol id="trash" viewBox="0 0 16 16"><path d="M3.6 4.6h8.8M6.2 4.6V3h3.6v1.6M5 4.6l.6 8.2h4.8L11 4.6"/></symbol>
+<symbol id="hand" viewBox="0 0 16 16"><path d="M5.6 7.6V4.2a1.1 1.1 0 0 1 2.2 0v2.6M7.8 6.8V3.4a1.1 1.1 0 0 1 2.2 0v3.4M10 6.6V4.8a1.1 1.1 0 0 1 2.2 0v5.2c0 2.2-1.6 3.8-3.8 3.8H8.4a3.6 3.6 0 0 1-3.6-3.6V8.6"/></symbol>
 </defs></svg>
 
+<!-- 默认态：解锁策略 = 系统自动解锁（推荐）。Form(.grouped)：每个子视图是一行，说明文字也是卡内独立的一行 -->
 <div class="col">
 <div class="window chrome">
   <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
@@ -30,41 +34,70 @@
       <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
     </div>
     <div class="detail">
-      <div class="section">
-        <div class="sec-title">靠近时的行为</div>
-        <div class="form-row"><div class="label" style="flex:1">点亮显示器</div><div class="sw"><i></i></div></div>
-        <div class="form-row"><div class="label" style="flex:1">解锁策略</div><div class="picker">系统自动解锁 <span style="color:#8e8e93">▾</span></div></div>
-        <div class="cap mt8">点亮屏幕并等待系统「使用 Apple Watch 解锁」完成，本应用不接触密码。</div>
-        <div class="form-row mt8"><div class="label" style="flex:1">唤醒后宽限</div><span class="v num" style="color:#6e6e73">8 秒</span><div class="stp"><i>▲</i><i>▼</i></div></div>
-      </div>
+      <div class="g-sec"><div class="g-head">靠近时的行为</div><div class="g-card">
+        <div class="g-row"><div class="label" style="flex:1">点亮显示器</div><div class="sw"><i></i></div></div>
+        <div class="g-row"><div class="label" style="flex:1">解锁策略</div><div class="picker">系统自动解锁（推荐） <span style="color:#8e8e93">▾</span></div></div>
+        <div class="g-row"><div class="cap">在唤醒的基础上检查系统自动解锁前置条件，缺失时给出引导，不接触用户密码。</div></div>
+        <div class="g-row"><div class="label" style="flex:1">唤醒后宽限</div><span class="v">8 秒</span><div class="stp"><i>▲</i><i>▼</i></div></div>
+      </div></div>
 
-      <div class="section">
-        <div class="sec-title">系统自动解锁</div>
-        <div class="form-row"><div class="btn" style="flex:1">打开「系统设置 → 锁定屏幕」</div></div>
-        <div class="cap mt8">Apple 未提供第三方可用的自动解锁 API，推荐开启系统自带的「使用 Apple Watch 解锁」，本应用负责靠近时唤醒屏幕。</div>
-      </div>
+      <div class="g-sec"><div class="g-head">系统自动解锁</div><div class="g-card">
+        <div class="g-row"><div class="btn w-full"><svg class="ic"><use href="#extarrow"/></svg>打开「系统设置 → 锁定屏幕」</div></div>
+        <div class="g-row"><div class="cap">Apple 未提供第三方可用的自动解锁 API，推荐开启系统自带的「使用 Apple Watch 解锁」，本应用负责靠近时唤醒屏幕。</div></div>
+      </div></div>
 
-      <div class="section">
-        <div class="sec-title" style="color:#ff9f0a;display:flex;align-items:center;gap:5px">
-          <svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg>托管密码（高风险）
-        </div>
-        <div class="form-row"><div class="field" style="flex:1;color:#1d1d1f">••••••••••</div></div>
-        <div class="row mt8" style="gap:8px">
-          <div class="btn p">保存到钥匙串</div>
-          <div class="btn d">清除</div>
-          <div class="sp"></div>
-        </div>
-        <div class="form-row mt8"><div class="btn" style="flex:1">打开辅助功能授权</div></div>
-        <div class="row mt8" style="gap:6px">
-          <svg class="ic" style="color:#34c759"><use href="#info"/></svg>
-          <div class="cap" style="color:#34c759">已保存到钥匙串</div>
-        </div>
-        <div class="cap mt8">密码将以「仅本机解锁时可访问」的方式存入钥匙串，并通过辅助功能模拟键入。系统更新或登录窗口结构变化时可能失效。</div>
-      </div>
+      <div class="g-sec"><div class="g-head" style="color:#ff9f0a;display:flex;align-items:center;gap:5px"><svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg>托管密码（高风险）</div><div class="g-card">
+        <div class="g-row"><div class="cap">当前策略不需要密码。若确实要让应用代为输入登录密码，请把上方「解锁策略」改为「托管密码自动输入（高风险）」。</div></div>
+      </div></div>
     </div>
   </div>
 </div>
-<div class="caption">解锁 · 托管密码整段以警示边框与图标标明风险等级，操作结果按成功 / 失败着色</div>
+<div class="caption">解锁 · 默认态：托管密码段只有一行说明，不出现任何密码控件</div>
+</div>
+
+<!-- 选了「托管密码自动输入」后：出现密码输入与钥匙串操作，整段以橙色警示标题标明风险 -->
+<div class="col">
+<div class="window chrome">
+  <div class="lights float"><span class="light r"></span><span class="light y"></span><span class="light g"></span></div>
+  <div class="split">
+    <div class="sidebar">
+<div class="side-brand"><img src="AppIcon-master.png" alt=""><span>WatchLock</span></div>
+      <div class="side-item"><svg class="ic"><use href="#gear"/></svg>通用</div>
+      <div class="side-item"><svg class="ic"><use href="#watch"/></svg>设备</div>
+      <div class="side-item"><svg class="ic"><use href="#pin"/></svg>场所</div>
+      <div class="side-item on"><svg class="ic"><use href="#lockopen"/></svg>解锁</div>
+      <div class="side-item"><svg class="ic"><use href="#ruler"/></svg>校准</div>
+      <div class="side-item"><svg class="ic"><use href="#steth"/></svg>诊断</div>
+      <div class="side-sep"></div>
+      <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
+    </div>
+    <div class="detail">
+      <div class="g-sec"><div class="g-head">靠近时的行为</div><div class="g-card">
+        <div class="g-row"><div class="label" style="flex:1">点亮显示器</div><div class="sw"><i></i></div></div>
+        <div class="g-row"><div class="label" style="flex:1">解锁策略</div><div class="picker">托管密码自动输入（高风险） <span style="color:#8e8e93">▾</span></div></div>
+        <div class="g-row"><div class="cap">将登录密码存入钥匙串，靠近时通过辅助功能模拟键入完成解锁。需要辅助功能权限，存在密码泄漏风险，仅建议在个人设备上开启。</div></div>
+        <div class="g-row"><div class="label" style="flex:1">唤醒后宽限</div><span class="v">8 秒</span><div class="stp"><i>▲</i><i>▼</i></div></div>
+      </div></div>
+
+      <div class="g-sec"><div class="g-head">系统自动解锁</div><div class="g-card">
+        <div class="g-row"><div class="btn w-full"><svg class="ic"><use href="#extarrow"/></svg>打开「系统设置 → 锁定屏幕」</div></div>
+        <div class="g-row"><div class="cap">Apple 未提供第三方可用的自动解锁 API，推荐开启系统自带的「使用 Apple Watch 解锁」，本应用负责靠近时唤醒屏幕。</div></div>
+      </div></div>
+
+      <div class="g-sec"><div class="g-head" style="color:#ff9f0a;display:flex;align-items:center;gap:5px"><svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg>托管密码（高风险）</div><div class="g-card">
+        <div class="g-row"><div class="label" style="flex:1">macOS 登录密码</div><span class="num" style="letter-spacing:1px">••••••••••</span></div>
+        <div class="g-row" style="gap:8px">
+          <div class="btn p"><svg class="ic"><use href="#key"/></svg>保存到钥匙串</div>
+          <div class="btn d"><svg class="ic"><use href="#trash"/></svg>清除</div>
+          <div class="sp"></div>
+        </div>
+        <div class="g-row"><div class="btn w-full"><svg class="ic"><use href="#hand"/></svg>打开辅助功能授权</div></div>
+        <div class="g-row"><div class="cap">密码将以「仅本机解锁时可访问」的方式存入钥匙串，并通过辅助功能模拟键入。系统更新或登录窗口结构变化时可能失效。</div></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<div class="caption">解锁 · 选「托管密码自动输入」后：保存 / 清除 / 授权三个操作；清除需二次确认；操作结果以一行带图标的文案显示（成功绿色对勾、失败红色警告），保存成功后输入框清空</div>
 </div>
 </body>
 </html>

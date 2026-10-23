@@ -5,6 +5,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
 <symbol id="watch" viewBox="0 0 16 16"><rect x="4.6" y="4" width="6.8" height="8" rx="2.4"/><path d="M6.2 4V1.8h3.6V4M6.2 12v2.2h3.6V12"/></symbol>
 <symbol id="warn" viewBox="0 0 16 16"><path d="M8 2.6 14.4 13.4H1.6z"/><path d="M8 6.4v3.2M8 11.2v.5"/></symbol>
+<symbol id="tick" viewBox="0 0 16 16"><path d="M3.6 8.6l3 3 6-7"/></symbol>
 <symbol id="bt" viewBox="0 0 16 16"><path d="M8 1.4v13.2M8 1.4 11.4 4.8 4.6 11.2M8 14.6 11.4 11.2 4.6 4.8"/></symbol>
 </defs></svg>
 
@@ -17,11 +18,11 @@
        <path d="M270 46v7l4 3" fill="none" stroke="#007aff" stroke-width="1.6" stroke-linecap="round" stroke-opacity=".7"/></svg><div class="ob-dots"><i class="on"></i><i class=""></i><i class=""></i></div></div>
   <div class="ob-body" style="min-height:214px"><div class="eyebrow">欢迎使用 WatchLock</div><h2>先授权蓝牙</h2>
     <div class="lead">WatchLock 靠手表的蓝牙信号判断你在不在电脑旁，没有蓝牙它无法工作。</div>
-    <div class="card warn row mt12" style="gap:8px;padding:10px 12px"><svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg><div>尚未授予蓝牙权限</div></div>
+    <div class="card warn row mt12" style="gap:8px;padding:10px 12px"><svg class="ic" style="color:#ff9f0a"><use href="#warn"/></svg><div>尚未授予蓝牙权限，点击下方按钮前往系统设置</div></div>
     <div class="row mt12" style="font-size:13px;color:#3c3c43">▸ 为什么需要蓝牙权限？</div></div>
   <div class="ob-foot"><div class="sp"></div><div class="btn p">打开「系统设置 → 隐私与安全性 → 蓝牙」</div></div>
 </div>
-<div class="caption">步骤 1 · 未授权：插画画出「Mac 与手表之间连不上」；HIG 预说明屏规范 —— 只给一个按钮，不放「跳过 / 关闭」</div>
+<div class="caption">步骤 1 · 未授权（授权成功后自动进入下一步）：插画画出「Mac 与手表之间连不上」；HIG 预说明屏规范 —— 只给一个按钮，不放「跳过 / 关闭」</div>
 </div>
 
 <div class="col">
@@ -30,19 +31,24 @@
   <div class="ob-art"><svg width="330" height="88" viewBox="0 0 360 96"><g fill="#fff" stroke="#007aff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="82" y="26" width="68" height="44" rx="5"/><path d="M72 76h88"/></g>
        <circle cx="270" cy="52" r="30" fill="none" stroke="#007aff" stroke-opacity=".25"/><circle cx="270" cy="52" r="40" fill="none" stroke="#007aff" stroke-opacity=".12"/><g fill="none" stroke="#007aff" stroke-linecap="round" stroke-width="2"><path d="M176 40a16 16 0 0 1 0 24" opacity=".9"/><path d="M190 32a28 28 0 0 1 0 40" opacity=".55"/><path d="M204 24a40 40 0 0 1 0 56" opacity=".28"/></g><g fill="#fff" stroke="#007aff" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><rect x="255" y="34" width="30" height="36" rx="10"/><path d="M262 34V26h16v8M262 70v8h16v-8"/></g>
        <path d="M270 46v7l4 3" fill="none" stroke="#007aff" stroke-width="1.6" stroke-linecap="round" stroke-opacity=".7"/></svg><div class="ob-dots"><i class="done"></i><i class="on"></i><i class=""></i></div></div>
-  <div class="ob-body" style="min-height:236px"><h2>选一台是你的手表</h2>
-    <div class="lead">手表戴在手腕上贴近 Mac，信号最强那台通常就是它。</div>
-    <div class="list mt12"><div class="list-row" style="background:rgba(0,122,255,.06)">
-        <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
-        <div class="stack gap4" style="flex:1"><div class="t">Apple Watch</div></div>
-        <div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div><div class="s num" style="width:52px;text-align:right">-48 dBm</div><div class="btn sm p">已绑定</div></div><div class="list-row">
-        <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
-        <div class="stack gap4" style="flex:1"><div class="t">未命名设备 A1B2…</div></div>
-        <div class="meter"><span class="warn"></span><span class="warn"></span><span class=""></span><span class=""></span></div><div class="s num" style="width:52px;text-align:right">-72 dBm</div><div class="btn sm">选择</div></div></div>
+  <div class="ob-body" style="min-height:290px;padding:14px 50px 0"><h2>选一台是你的手表</h2>
+    <div class="lead">手表戴在手腕上贴近 Mac，信号最强那台通常就是它。广播不带名字是 Apple 设备的常态。</div>
+    <div class="dgrid mt12" style="grid-template-columns:repeat(auto-fill,minmax(92px,1fr));justify-content:center">
+      <div class="dtile sel">
+        <div class="plate"><svg class="ic"><use href="#watch"/></svg><span class="bd"><svg><use href="#tick"/></svg></span></div>
+        <div class="nm">Apple Watch</div>
+        <div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+      </div>
+      <div class="dtile">
+        <div class="plate"><svg class="ic"><use href="#watch"/></svg></div>
+        <div class="nm">未命名设备 · A1B2C3D4</div>
+        <div class="meter"><span class="warn"></span><span class="warn"></span><span></span><span></span></div>
+      </div>
+    </div>
     <div class="mt8" style="font-size:12px;color:#007aff">看不到设备？显示全部</div></div>
   <div class="ob-foot"><div class="btn">上一步</div><span style="font-size:13px;color:#6e6e73">跳过</span><div class="sp"></div><div class="btn p">继续</div></div>
 </div>
-<div class="caption">步骤 2 · 绑定：插画变成信号向手表扩散；真正的操作就是教学，主按钮在绑定成功后才可用</div>
+<div class="caption">步骤 2 · 绑定：设备以卡片网格呈现（与「设置 → 设备」同一组件），点击卡片即绑定，绑定前二次确认；插画变成信号向手表扩散；主按钮在绑定成功后才可用；没有设备时网格换成「暂未发现候选设备」空态</div>
 </div>
 
 <div class="col">

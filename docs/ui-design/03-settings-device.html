@@ -10,9 +10,18 @@
 <symbol id="steth" viewBox="0 0 16 16"><path d="M4 2.5v4a2.6 2.6 0 0 0 5.2 0v-4"/><circle cx="11.6" cy="10.4" r="2.2"/><path d="M9.2 8.6l1 1"/></symbol>
 <symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
 <symbol id="trash" viewBox="0 0 16 16"><path d="M3.6 4.6h8.8M6.2 4.6V3h3.6v1.6M5 4.6l.6 8.2h4.8L11 4.6"/></symbol>
-<symbol id="wave" viewBox="0 0 16 16"><path d="M2 9c1.4 0 1.4-4 2.8-4s1.4 8 2.8 8 1.4-8 2.8-8 1.4 4 2.8 4"/></symbol>
+<symbol id="wave" viewBox="0 0 16 16"><path d="M3.6 6.2a2.6 2.6 0 0 1 0 3.6M6.8 4.6a5.2 5.2 0 0 1 0 6.8M10 3a7.8 7.8 0 0 1 0 10"/></symbol>
 <symbol id="pin" viewBox="0 0 16 16"><path d="M8 14.2s4.4-3.9 4.4-7.4a4.4 4.4 0 0 0-8.8 0c0 3.5 4.4 7.4 4.4 7.4z"/><circle cx="8" cy="6.8" r="1.5"/></symbol>
 <symbol id="phone" viewBox="0 0 16 16"><rect x="4.6" y="1.8" width="6.8" height="12.4" rx="1.8"/><path d="M7 12.4h2"/></symbol>
+<symbol id="pencil" viewBox="0 0 16 16"><path d="M2.8 13.2l.7-3.2L10.8 2.7a1.5 1.5 0 0 1 2.1 2.1L5.6 12.1z"/><path d="M9.6 3.9l2.5 2.5"/></symbol>
+<symbol id="refresh" viewBox="0 0 16 16"><path d="M13.2 8A5.2 5.2 0 1 1 11.7 4.3M13.4 2.4v3h-3"/></symbol>
+<symbol id="minus" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M5.2 8h5.6"/></symbol>
+<!-- 角标里的对勾 / 加号（白色，叠在彩色圆上） -->
+<symbol id="tick" viewBox="0 0 16 16"><path d="M3.6 8.6l3 3 6-7"/></symbol>
+<symbol id="plus" viewBox="0 0 16 16"><path d="M8 3.4v9.2M3.4 8h9.2"/></symbol>
+<symbol id="airpods" viewBox="0 0 16 16"><path d="M2.6 5.6a2.4 2.4 0 0 1 4.8 0c0 1.3-.7 2.3-1.6 2.8v4.1a.8.8 0 0 1-1.6 0V8.4C3.3 7.9 2.6 6.9 2.6 5.6z"/><path transform="translate(16 0) scale(-1 1)" d="M2.6 5.6a2.4 2.4 0 0 1 4.8 0c0 1.3-.7 2.3-1.6 2.8v4.1a.8.8 0 0 1-1.6 0V8.4C3.3 7.9 2.6 6.9 2.6 5.6z"/></symbol>
+<symbol id="radio" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><path d="M5.5 5.8a3.6 3.6 0 0 0 0 4.4M10.5 5.8a3.6 3.6 0 0 1 0 4.4M3.5 4a6.2 6.2 0 0 0 0 8M12.5 4a6.2 6.2 0 0 1 0 8"/></symbol>
+<symbol id="check" viewBox="0 0 16 16"><path d="M3.6 8.6l3 3 6-7"/></symbol>
 </defs></svg>
 
 <div class="col">
@@ -31,83 +40,77 @@
       <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
     </div>
     <div class="detail">
+
+      <!-- 已绑定：编辑名称 / 图标 + 解除绑定（二次确认） -->
       <div class="card row" style="gap:12px">
         <svg class="ic lg" style="color:#34c759;width:20px;height:20px"><use href="#watch"/></svg>
         <div class="stack gap4" style="flex:1">
           <div class="sub">已绑定</div>
-          <div class="label" style="font-weight:600">Apple Watch</div>
+          <div class="label">Apple Watch</div>
         </div>
+        <div class="ibtn"><svg class="ic"><use href="#pencil"/></svg></div>
         <div class="btn d"><svg class="ic"><use href="#trash"/></svg>解除绑定</div>
       </div>
 
-      <div class="card mt12">
+      <!-- 附近设备：隔空投送式网格，点击整张卡片即绑定 -->
+      <div class="card mt12 stack gap8">
         <div class="row" style="gap:8px">
-          <div class="h" style="font-size:13px">附近设备（按信号排序）</div>
+          <div class="ch"><svg class="ic"><use href="#wave"/></svg>附近设备</div>
           <div class="sp"></div>
-          <div class="btn sm">重新扫描</div>
+          <div class="btn"><svg class="ic"><use href="#refresh"/></svg>重新扫描</div>
         </div>
-        <div class="list mt8">
-          <div class="list-row">
-            <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
-            <div class="stack gap4" style="flex:1">
-              <div class="t">Apple Watch</div>
-            </div>
+        <div class="cap">点击设备即可绑定。靠近 Mac 的排在前面，最靠前的那台通常就是你的手表。</div>
+        <div class="dgrid">
+          <div class="dtile sel">
+            <div class="plate"><svg class="ic"><use href="#watch"/></svg><span class="bd"><svg><use href="#tick"/></svg></span></div>
+            <div class="nm">Apple Watch</div>
             <div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
-            <div class="s num" style="width:56px;text-align:right">-48 dBm</div>
-            <div class="btn sm" style="opacity:.45">已绑定</div>
           </div>
-          <div class="list-row">
-            <svg class="ic" style="color:#8e8e93"><use href="#watch"/></svg>
-            <div class="stack gap4" style="flex:1">
-              <div class="t">未命名设备 A1B2…</div>
-            </div>
-            <div class="meter"><span class="warn"></span><span class="warn"></span><span></span><span></span></div>
-            <div class="s num" style="width:56px;text-align:right">-72 dBm</div>
-            <div class="btn sm">绑定</div>
+          <div class="dtile hov">
+            <div class="plate"><svg class="ic"><use href="#radio"/></svg></div>
+            <div class="nm">未命名设备 · 3F8A91C2</div>
+            <div class="meter"><span class="warn"></span><span></span><span></span><span></span></div>
+            <span class="pen"><svg><use href="#pencil"/></svg></span>
           </div>
         </div>
-        <div class="cap mt8">把手表贴近 Mac，最靠前的那台通常就是它。名称不是必需条件，绑定后按设备标识追踪。</div>
       </div>
 
-      <div class="card mt12">
-        <div class="row" style="gap:8px">
-          <svg class="ic"><use href="#phone"/></svg>
-          <div class="h" style="font-size:13px">辅助设备</div>
-          <div class="sp"></div>
-          <div class="s">手表信号丢失时参考 · 开</div>
+      <!-- 辅助设备：Form 之外的 Toggle 是复选框 -->
+      <div class="card mt12 stack gap8">
+        <div class="ch"><svg class="ic"><use href="#phone"/></svg>辅助设备</div>
+        <div class="cb"><i><svg><use href="#tick"/></svg></i>手表信号丢失时，参考辅助设备</div>
+        <div class="cap">辅助设备只会推迟「手表信号丢失」引起的锁定，最多 2 分钟；它不会让 Mac 自己锁屏，手表信号明确很弱时也不会被它推翻。iPhone 息屏后可能不再广播，效果取决于设备状态。</div>
+        <div class="arow">
+          <svg class="ic" style="width:20px;height:20px;color:#6e6e73"><use href="#phone"/></svg>
+          <div class="stack gap4" style="flex:1"><div class="t">Eden 的 iPhone</div><div class="s" style="color:#34c759">在附近 · -58 dBm</div></div>
+          <div class="ibtn"><svg class="ic"><use href="#pencil"/></svg></div>
+          <div class="btn"><svg class="ic"><use href="#minus"/></svg>移除</div>
         </div>
-        <div class="cap mt8">辅助设备只会推迟「手表信号丢失」引起的锁定，最多 2 分钟；它不会让 Mac 自己锁屏，手表信号明确很弱时也不会被它推翻。iPhone 息屏后可能不再广播，效果取决于设备状态。</div>
-        <div class="list mt8">
-          <div class="list-row">
-            <svg class="ic" style="color:#8e8e93"><use href="#phone"/></svg>
-            <div class="stack gap4" style="flex:1">
-              <div class="t">Eden 的 iPhone</div>
-              <div class="s" style="color:#34c759">在附近 · -58 dBm</div>
-            </div>
-            <div class="btn sm">移除</div>
+        <div class="divider" style="margin:2px 0"></div>
+        <div class="cap">附近可添加的设备</div>
+        <div class="dgrid">
+          <div class="dtile">
+            <div class="plate"><svg class="ic"><use href="#airpods"/></svg><span class="bd add"><svg><use href="#plus"/></svg></span></div>
+            <div class="nm">AirPods Pro</div>
+            <div class="meter"><span class="warn"></span><span class="warn"></span><span></span><span></span></div>
+          </div>
+          <div class="dtile">
+            <div class="plate"><svg class="ic"><use href="#phone"/></svg><span class="bd add"><svg><use href="#plus"/></svg></span></div>
+            <div class="nm">Eden 的 iPad</div>
+            <div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span></span></div>
           </div>
         </div>
-        <div class="cap mt8">附近可添加的设备</div>
-        <div class="list mt8">
-          <div class="list-row">
-            <svg class="ic" style="color:#8e8e93"><use href="#phone"/></svg>
-            <div class="stack gap4" style="flex:1">
-              <div class="t">AirPods Pro</div>
-              <div class="s num">-64 dBm</div>
-            </div>
-            <div class="btn sm">添加</div>
-          </div>
-        </div>
-        <div class="cap mt8">靠名称辨认：iPhone 与手表的广播类型相同，无法自动区分，请只添加你认得的设备。最多 3 台。</div>
+        <div class="cap">靠名称辨认：同一台 iPhone 与手表的广播类型相同，无法自动区分，请只添加你认得的设备。最多 3 台。</div>
       </div>
 
       <div class="row mt12" style="gap:6px">
-        <span class="cap">扫描中</span><span class="cap">·</span><span class="cap">蓝牙：已开启</span>
+        <span class="cap">扫描中</span><span class="cap" style="color:#8e8e93">·</span><span class="cap">蓝牙：已开启</span>
       </div>
+      <div class="cap mt12">把手表贴近 Mac，最靠前的那台通常就是它。名称不是必需条件，绑定后按设备标识追踪。</div>
     </div>
   </div>
 </div>
-<div class="caption">设备 · 空态时列表区域替换为 ContentUnavailableView（不再 overlay 叠加）；解除绑定需二次确认；辅助设备卡片位于候选列表下方</div>
+<div class="caption">设备 · 设备卡片图标在上、名称在下（绿框 + 对勾 = 已绑定，蓝色加号 = 点击添加），点击整张卡片即绑定 / 添加，绑定前会二次确认；信号条在卡片左上角、悬停时右上角出现铅笔（第 2 张），右键或 VoiceOver 可「自定义名称和图标」；空态时网格替换为 ContentUnavailableView</div>
 </div>
 </body>
 </html>

@@ -10,9 +10,12 @@
 <symbol id="steth" viewBox="0 0 16 16"><path d="M4 2.5v4a2.6 2.6 0 0 0 5.2 0v-4"/><circle cx="11.6" cy="10.4" r="2.2"/><path d="M9.2 8.6l1 1"/></symbol>
 <symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.4v4M8 5.2v.5"/></symbol>
 <symbol id="trash" viewBox="0 0 16 16"><path d="M3.6 4.6h8.8M6.2 4.6V3h3.6v1.6M5 4.6l.6 8.2h4.8L11 4.6"/></symbol>
-<symbol id="wave" viewBox="0 0 16 16"><path d="M2 9c1.4 0 1.4-4 2.8-4s1.4 8 2.8 8 1.4-8 2.8-8 1.4 4 2.8 4"/></symbol>
 <symbol id="pin" viewBox="0 0 16 16"><path d="M8 14.2s4.4-3.9 4.4-7.4a4.4 4.4 0 0 0-8.8 0c0 3.5 4.4 7.4 4.4 7.4z"/><circle cx="8" cy="6.8" r="1.5"/></symbol>
-<symbol id="phone" viewBox="0 0 16 16"><rect x="4.6" y="1.8" width="6.8" height="12.4" rx="1.8"/><path d="M7 12.4h2"/></symbol>
+<symbol id="wifi" viewBox="0 0 16 16"><path d="M1.8 6.2a8.6 8.6 0 0 1 12.4 0M4 8.6a5.4 5.4 0 0 1 8 0M6.2 11a2.2 2.2 0 0 1 3.6 0"/><circle cx="8" cy="13" r=".7" fill="currentColor" stroke="none"/></symbol>
+<symbol id="locate" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M11.2 4.8 9.1 9.9 7.4 8.4 5.2 7.4z"/></symbol>
+<symbol id="location" viewBox="0 0 16 16"><path d="M13.4 2.6 8.6 13.4 7.2 8.8 2.6 7.4z"/></symbol>
+<symbol id="plusc" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2"/><path d="M8 5v6M5 8h6"/></symbol>
+<symbol id="tick" viewBox="0 0 16 16"><path d="M3.6 8.6l3 3 6-7"/></symbol>
 </defs></svg>
 
 <div class="col">
@@ -31,47 +34,62 @@
       <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
     </div>
     <div class="detail">
-      <div class="card">
-        <div class="row" style="gap:8px"><div class="label">在信任场所自动暂停</div><div class="sp"></div><div class="btn sm">开</div></div>
-        <div class="cap mt8" style="color:#ff9500">当前在「家」，自动锁定已暂停。</div>
+
+      <!-- 总开关：Form 之外的 Toggle 是复选框；状态行在场所内变橙 -->
+      <div class="card stack gap8">
+        <div class="cb"><i><svg><use href="#tick"/></svg></i>在信任场所自动暂停</div>
+        <div class="cap" style="color:#ff9500">当前在「家」，自动锁定已暂停。</div>
       </div>
 
-      <div class="card mt12">
-        <div class="h" style="font-size:13px">当前网络</div>
-        <div class="label mt8">Home-5G · 网关 aa:bb:cc:dd:ee:01</div>
-        <div class="row mt8" style="gap:8px">
+      <!-- 当前网络：按网关识别，不需要授权 -->
+      <div class="card mt12 stack gap8">
+        <div class="ch"><svg class="ic"><use href="#wifi"/></svg>当前网络</div>
+        <div style="font-size:12px">Home-5G · 网关 aa:bb:cc:dd:ee:01</div>
+        <div class="cap">这个网络已保存为「家」。</div>
+        <div class="row" style="gap:8px">
           <div class="field" style="flex:1">名称（可选）</div>
-          <div class="btn sm" style="opacity:.45">设为信任场所</div>
-        </div>
-        <div class="cap mt8">这个网络已保存为「家」。</div>
-      </div>
-
-      <div class="card mt12">
-        <div class="h" style="font-size:13px">已保存的场所</div>
-        <div class="list mt8">
-          <div class="list-row">
-            <div class="stack gap4" style="flex:1"><div class="t">家</div><div class="s">Home-5G · 网关 aa:bb:cc:dd:ee:01</div></div>
-            <div class="s" style="color:#34c759">当前</div>
-            <div class="btn sm d"><svg class="ic"><use href="#trash"/></svg>删除</div>
-          </div>
-          <div class="list-row">
-            <div class="stack gap4" style="flex:1"><div class="t">公司</div><div class="s">网关 aa:bb:cc:dd:ee:02</div></div>
-            <div class="btn sm d"><svg class="ic"><use href="#trash"/></svg>删除</div>
-          </div>
+          <div class="btn" style="opacity:.45"><svg class="ic"><use href="#plusc"/></svg>设为信任场所</div>
         </div>
       </div>
 
-      <div class="card mt12">
-        <div class="row" style="gap:8px"><div class="h" style="font-size:13px">Wi-Fi 名称（可选）</div><div class="sp"></div><div class="s">尚未授权</div></div>
-        <div class="cap mt8">信任场所靠网关识别网络，不需要任何授权。授权后列表里能显示网络名，并在「网关相同但换了 Wi-Fi 名称」时不再信任。WatchLock 不读取、不上传你的位置。</div>
-        <div class="btn sm mt8">授权读取 Wi-Fi 名称…</div>
+      <!-- 当前位置：同一个地点换了网络时，按位置信任（需要定位授权） -->
+      <div class="card mt12 stack gap8">
+        <div class="ch"><svg class="ic"><use href="#locate"/></svg>当前位置</div>
+        <div style="font-size:12px">已定位 · 精度约 35 米</div>
+        <div class="row" style="gap:8px"><span>半径</span><div class="seg"><span>100 米</span><span class="on">200 米</span><span>500 米</span></div></div>
+        <div class="row" style="gap:8px">
+          <div class="field" style="flex:1">名称（可选）</div>
+          <div class="btn"><svg class="ic"><use href="#plusc"/></svg>将当前位置设为信任场所</div>
+        </div>
+        <div class="cap">Mac 靠 Wi-Fi 和网络定位，精度通常几十到几百米，所以半径最小 100 米；定位不准或没有定位结果时，不会按位置判断「在场所内」。</div>
       </div>
 
-      <div class="cap mt12">网络指纹只在本机比对，不上传。它可以被同一网络里的设备伪造，所以这是方便功能，不是安全防线；离开该网络后会立即恢复自动锁定。</div>
+      <!-- 已保存的场所：网络场所显示网关，位置场所显示半径 -->
+      <div class="card mt12 stack gap8">
+        <div class="ch"><svg class="ic"><use href="#pin"/></svg>已保存的场所</div>
+        <div class="arow">
+          <div class="stack gap4" style="flex:1"><div class="t">家</div><div class="s">Home-5G · 网关 aa:bb:cc:dd:ee:01</div></div>
+          <div class="s" style="color:#34c759">当前</div>
+          <div class="btn d"><svg class="ic"><use href="#trash"/></svg>删除</div>
+        </div>
+        <div class="arow">
+          <div class="stack gap4" style="flex:1"><div class="t">公司</div><div class="s">位置 · 半径 200 米</div></div>
+          <div class="btn d"><svg class="ic"><use href="#trash"/></svg>删除</div>
+        </div>
+      </div>
+
+      <!-- 定位服务：可选增强，不授权也能用 -->
+      <div class="card mt12 stack gap8">
+        <div class="row" style="gap:8px"><div class="ch"><svg class="ic"><use href="#location"/></svg>定位服务（可选）</div><div class="sp"></div><div class="cap" style="color:#34c759">已授权</div></div>
+        <div class="cap">网络场所靠网关识别，不需要任何授权。授权定位服务后，可以把当前位置保存为信任场所，列表里也能显示 Wi-Fi 名称，并在「网关相同但换了 Wi-Fi 名称」时不再信任。位置只在本机比对，不上传。</div>
+        <div class="cap">重新打包安装后，系统可能要求重新授权；授权丢失时位置场所不会生效（按「不在场所内」处理），网络场所照常工作。</div>
+      </div>
+
+      <div class="cap mt12">网络指纹和位置只在本机比对，不上传。网络指纹可以被同一网络里的设备伪造，位置也可能因定位误差飘出范围，所以这是方便功能，不是安全防线；离开该场所后会立即恢复自动锁定。</div>
     </div>
   </div>
 </div>
-<div class="caption">场所 · 删除需二次确认；在场所内菜单栏出现「在「家」，已暂停 [恢复]」提示条；授权被拒时按钮换成「打开系统设置」</div>
+<div class="caption">场所 · 可按网络（网关）或按位置（半径 100 / 200 / 500 米）信任；删除需二次确认；在场所内菜单栏出现「在「家」，已暂停 [恢复]」提示条；未授权定位时「当前位置」卡改为说明 + 「授权定位服务…」（被拒绝时为「打开系统设置」）</div>
 </div>
 </body>
 </html>

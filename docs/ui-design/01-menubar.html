@@ -14,6 +14,7 @@
 <symbol id="warn" viewBox="0 0 16 16"><path d="M8 2.6 14.4 13.4H1.6z"/><path d="M8 6.4v3.2M8 11.2v.5"/></symbol>
 <symbol id="hand" viewBox="0 0 16 16"><path d="M5.6 7.6V4.2a1.1 1.1 0 0 1 2.2 0v2.6M7.8 6.8V3.4a1.1 1.1 0 0 1 2.2 0v3.4M10 6.6V4.8a1.1 1.1 0 0 1 2.2 0v5.2c0 2.2-1.6 3.8-3.8 3.8H8.4a3.6 3.6 0 0 1-3.6-3.6V8.6"/></symbol>
 <symbol id="wave" viewBox="0 0 16 16"><path d="M2 9c1.4 0 1.4-4 2.8-4s1.4 8 2.8 8 1.4-8 2.8-8 1.4 4 2.8 4"/></symbol>
+<symbol id="pin" viewBox="0 0 16 16"><path d="M8 14.2s4.4-3.9 4.4-7.4a4.4 4.4 0 0 0-8.8 0c0 3.5 4.4 7.4 4.4 7.4z"/><circle cx="8" cy="6.8" r="1.5"/></symbol>
 <!-- 状态图标：与 08-menubar-icons.html / 菜单栏同源（18×18，线宽 1.8） -->
 <symbol id="s-near" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M12.7 8.2V5.3A3.7 3.7 0 1 0 5.43 4.34"/></symbol>
 <symbol id="s-far" viewBox="0 0 18 18"><circle cx="9" cy="11.2" r="5.1"/><path d="M5.3 8.2V5.3A3.7 3.7 0 0 1 12.7 5.3V8.2"/><circle cx="9" cy="11.2" r="1.4" fill="currentColor" stroke="none"/></symbol>
@@ -99,10 +100,52 @@
       </div>
     </div>
   </div>
-  <div class="caption">暂停中：橙色状态条在瓦片之下，触发时才出现</div>
+  <div class="caption">暂停中：橙色状态条在瓦片之下，触发时才出现（手动暂停可选 15 分钟 / 1 / 4 小时）</div>
 </div>
 
-<!-- 场景 3：刚锁屏 / 误锁反馈 -->
+<!-- 场景 3：信任场所内自动暂停 -->
+<div class="col">
+  <div class="mb-scene">
+    <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#8e8e93"><use href="#s-paused"/></svg>WatchLock</span></div>
+    <div style="padding:10px">
+      <div class="pop-wrap">
+        <div class="arrow"></div>
+        <div class="popover">
+          <div class="row top" style="gap:8px">
+            <svg class="ic state" style="color:#8e8e93"><use href="#s-paused"/></svg>
+            <div class="stack gap4" style="flex:1"><div class="h">已暂停自动锁定</div><div class="sub">Apple Watch</div></div>
+            <div class="swcap"><div class="sw"><i></i></div><div class="cap">自动锁定</div></div>
+          </div>
+
+          <div class="tiles mt12">
+            <div class="tile"><div class="k"><span>信号</span><div class="meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div></div><div class="v">-52<small>dBm</small></div></div>
+            <div class="tile"><div class="k"><span>距离</span></div><div class="v">0.8<small>米</small></div></div>
+            <div class="tile"><div class="k"><span>更新</span></div><div class="v">2<small>秒前</small></div></div>
+          </div>
+
+          <div class="card warn mt12" style="padding:8px 12px">
+            <div class="row" style="gap:8px">
+              <svg class="ic" style="color:#ff9f0a"><use href="#pin"/></svg>
+              <div class="cap" style="flex:1">在「家」，已暂停</div>
+              <div class="btn sm">恢复</div>
+            </div>
+          </div>
+          <div class="row mt12" style="gap:8px">
+            <div class="btn" style="flex:1"><svg class="ic"><use href="#lock"/></svg>立即锁定</div>
+            <div class="btn" style="flex:1"><svg class="ic"><use href="#pause"/></svg>暂停</div>
+            <div class="btn" style="flex:1"><svg class="ic"><use href="#gear"/></svg>设置…</div>
+          </div>
+
+          <div class="divider" style="margin:12px 0 0"></div>
+          <div class="row mt8"><div class="more">更多 ⌄</div><div class="sp"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">信任场所内：与手动暂停同款提示条，「恢复」只对本次停留有效，离开该场所后重新按场所判断</div>
+</div>
+
+<!-- 场景 4：刚锁屏 / 误锁反馈 -->
 <div class="col">
   <div class="mb-scene">
     <div class="menubar"><span>100%</span><span>⌘</span><span style="display:flex;align-items:center;gap:4px"><svg class="ic" style="width:12px;height:12px;color:#ff9f0a"><use href="#s-far"/></svg>WatchLock</span></div>
@@ -121,7 +164,7 @@
             <div class="tile"><div class="k"><span>距离</span></div><div class="v">4.2<small>米</small></div></div>
             <div class="tile"><div class="k"><span>更新</span></div><div class="v">1<small>分钟前</small></div></div>
           </div>
-          <div class="row mt8"><div class="cap">上次锁定</div><div class="sp"></div><div class="cap num">14:05 · 超出距离</div></div>
+          <div class="row mt8"><div class="cap">上次锁定</div><div class="sp"></div><div class="cap num">14:05 · 手表离开设定范围</div></div>
           <div class="card warn mt12" style="padding:8px 12px">
             <div class="row" style="gap:8px"><svg class="ic t-orange"><use href="#hand"/></svg><div class="cap" style="flex:1">刚才这次是误锁？</div><div class="btn sm">记为误锁</div></div>
           </div>

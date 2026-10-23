@@ -30,37 +30,55 @@
       <div class="side-item"><svg class="ic"><use href="#info"/></svg>关于</div>
     </div>
     <div class="detail">
-      <div class="card">
+      <div class="card stack gap8">
         <div class="h" style="font-size:13px">误锁反馈与自动调参</div>
-        <div class="cap mt8" style="margin-top:4px">在菜单栏点击「刚才这次是误锁？」即记为一次误锁；误锁率超过 20%（至少 3 次样本）时自动放宽「已离开」阈值，长期无误锁后缓慢回到默认值。</div>
-        <div class="chips mt12">
+        <div class="cap">在菜单栏点击「刚才这次是误锁？」即记为一次误锁；误锁率超过 20%（至少 3 次样本）时自动放宽「已离开」阈值，长期无误锁后缓慢回到默认值。</div>
+        <div class="chips">
           <div class="chip"><b>12</b><span>自动锁定</span></div>
           <div class="chip"><b style="color:#ff9f0a">1</b><span>误锁</span></div>
           <div class="chip"><b>8%</b><span>误锁率</span></div>
         </div>
-        <div class="row mt12" style="gap:8px"><div class="btn">恢复默认阈值</div><div class="sp"></div></div>
+        <div class="row" style="gap:8px"><div class="btn">恢复默认阈值</div><div class="sp"></div></div>
       </div>
 
-      <div class="card mt12">
-        <div class="h" style="font-size:13px">诊断日志</div>
-        <div class="log mt8">
-          <div><span class="t">19:22:07 · 信息</span>&nbsp;&nbsp;开始校准采样：以当前位置为「在身边」基准</div>
-          <div><span class="t">19:22:17 · 信息</span>&nbsp;&nbsp;校准完成：已按当前位置设置 在身边 -54 / 已离开 -71</div>
-          <div><span class="t">19:24:03 · 信息</span>&nbsp;&nbsp;自动锁定（手表离开设定范围）</div>
-          <div><span class="t">19:24:44 · 警告</span>&nbsp;&nbsp;收到误锁反馈，误锁率 8%</div>
+      <!-- 锁定记录（FR-21）：只显示最近 4 条，完整记录靠导出，避免嵌套滚动 -->
+      <div class="card mt12 stack gap8">
+        <div class="h" style="font-size:13px">锁定记录</div>
+        <div class="cap">每次实际执行的锁定都会留一条（含手动锁定），只保存在本机，最多 200 条。</div>
+        <div class="stack gap6">
+          <div class="hrow"><span class="m">19:24 · 手表离开设定范围</span><span class="k" style="color:#ff9f0a">误锁</span><span class="r num">-78 dBm</span></div>
+          <div class="hrow"><span class="m">18:02 · 手动锁定</span><span class="k">手动</span><span class="r num">-55 dBm</span></div>
+          <div class="hrow"><span class="m">10月22日 18:40 · 手表离开设定范围（已暂缓满上限）</span><span class="k">自动</span><span class="r num">-81 dBm</span></div>
+          <div class="hrow"><span class="m">10月22日 09:12 · 手动解锁后手表仍在远处，且键鼠已空闲</span><span class="k">重新布防</span><span class="r num">-90 dBm</span></div>
         </div>
-        <div class="row mt8" style="gap:8px">
+        <div class="cap">仅显示最近 4 条，共 9 条；导出可查看全部。</div>
+        <div class="row" style="gap:8px">
+          <div class="btn">导出 CSV…</div>
+          <div class="btn d">清空记录</div>
+          <div class="sp"></div>
+        </div>
+      </div>
+
+      <!-- 诊断日志：最新在上，每条两行（时间 · 级别 / 等宽正文）；日志区独占剩余高度 -->
+      <div class="card mt12 stack gap8">
+        <div class="h" style="font-size:13px">诊断日志</div>
+        <div class="logbox stack gap6">
+          <div><div class="lt">19:24:44 · 警告</div><div class="lm">收到误锁反馈，误锁率 8%</div></div>
+          <div><div class="lt">19:24:03 · 信息</div><div class="lm">自动锁定（手表离开设定范围）</div></div>
+          <div><div class="lt">19:22:17 · 信息</div><div class="lm">校准完成：已按当前位置设置 在身边 -54 / 已离开 -71</div></div>
+          <div><div class="lt">19:22:07 · 信息</div><div class="lm">开始校准采样：以当前位置为「在身边」基准</div></div>
+        </div>
+        <div class="row" style="gap:8px">
           <div class="btn">导出…</div>
           <div class="btn d">清空日志</div>
           <div class="sp"></div>
         </div>
       </div>
 
-
     </div>
   </div>
 </div>
-<div class="caption">诊断 · 原「高级」拆出的后半部分：整页单个 VStack，日志独占高度，不再嵌套滚动；清空日志需二次确认</div>
+<div class="caption">诊断 · 误锁调参 / 锁定记录 / 诊断日志三张卡；日志最新在上，独占剩余高度，不嵌套滚动；清空记录、清空日志均需二次确认。广播抓包与调试两张卡只在开发者模式下出现，普通用户看不到</div>
 </div>
 </body>
 </html>

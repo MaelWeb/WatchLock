@@ -8,18 +8,28 @@ struct SignalMeter: View {
     let rssi: Double
     let nearRSSI: Int
     let farRSSI: Int
+    /// 小号：设备卡片角落用（柱宽 2.5、总高约 9）；默认 4 / 15，菜单栏瓦片用。
+    var compact = false
 
     static let levelCount = 4
+
+    private var barWidth: CGFloat { compact ? 2.5 : 4 }
+    private var baseHeight: CGFloat { compact ? 2.5 : 4 }
+    private var heightStep: CGFloat { compact ? 2.2 : 3.6 }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: WLSpacing.xxs) {
             ForEach(0 ..< Self.levelCount, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                RoundedRectangle(cornerRadius: compact ? 1 : 1.5, style: .continuous)
                     .fill(index < level ? fillColor : WLColor.track)
-                    .frame(width: 4, height: barHeight(index))
+                    .frame(width: barWidth, height: barHeight(index))
             }
         }
-        .frame(width: 22, height: 15, alignment: .bottom)
+        .frame(
+            width: barWidth * CGFloat(Self.levelCount) + WLSpacing.xxs * CGFloat(Self.levelCount - 1),
+            height: barHeight(Self.levelCount - 1),
+            alignment: .bottom
+        )
         .accessibilityElement()
         .accessibilityLabel("信号强度")
         .accessibilityValue(accessibilityValue)
@@ -43,7 +53,7 @@ struct SignalMeter: View {
     }
 
     private func barHeight(_ index: Int) -> CGFloat {
-        4 + CGFloat(index) * 3.6
+        baseHeight + CGFloat(index) * heightStep
     }
 
     /// 信号分级（纯函数，便于单测）。
